@@ -344,7 +344,7 @@ local Library = {
     DescriptionTooltipFrame = nil,
     PanelModules = {},
     UseDeltaCheckboxes = false,
-    UseDeltaChips = true,
+    UseDeltaChips = false,
     UseClickGuiBlur = true,
     UseClickGuiAnim = true,
     ToggleUpdaters = {},
@@ -4023,8 +4023,9 @@ do
     local LastLayoutSig = ""
     local LastTopSections = {}
     local LastBottomSections = {}
-    local TopLabels = {}
-    local BottomLabels = {}
+    local TopSlots = {}
+    local BottomSlots = {}
+    local TopRowW, BottomRowW = 0, 0
     local UserMoved = false
     local UpdatingPos = false
 
@@ -4032,22 +4033,26 @@ do
         return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 6)
     end
 
+    local function MeasureWmText(str: string): number
+        local s = tostring(str or "")
+        if s == "" then return 0 end
+        local ok, sz = pcall(function()
+            return TextService:GetTextSize(s, 13, Enum.Font.GothamMedium, Vector2.new(2000, 25))
+        end)
+        if ok and sz then
+            return math.ceil(sz.X) + 2
+        end
+        return #s * 7 + 4
+    end
+
     local WmRoot = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
-        AutomaticSize = Enum.AutomaticSize.XY,
         BackgroundTransparency = 1,
         Position = UDim2.new(0.5, 0, 0, 44),
-        Size = UDim2.fromOffset(0, 0),
+        Size = UDim2.fromOffset(100, 25),
         Visible = false,
         ZIndex = 2,
         Parent = Floats,
-    })
-    New("UIListLayout", {
-        FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        Padding = UDim.new(0, 6),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = WmRoot,
     })
     table.insert(Library.Scales, New("UIScale", { Parent = WmRoot }))
     if not table.find(Library.DraggableElements, WmRoot) then
@@ -4061,22 +4066,37 @@ do
     end)
 
     local TopRowHolder = New("Frame", {
-        AutomaticSize = Enum.AutomaticSize.XY,
         BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Size = UDim2.fromOffset(0, 25),
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.fromOffset(100, 25),
         ZIndex = 2,
         Parent = WmRoot,
     })
     local BottomRowHolder = New("Frame", {
-        AutomaticSize = Enum.AutomaticSize.XY,
         BackgroundTransparency = 1,
-        LayoutOrder = 2,
-        Size = UDim2.fromOffset(0, 25),
+        Position = UDim2.fromOffset(0, 31),
+        Size = UDim2.fromOffset(100, 25),
         Visible = false,
         ZIndex = 2,
         Parent = WmRoot,
     })
+
+    local function SyncRootSize()
+        local hasBottom = BottomRowHolder.Visible and BottomRowW > 0
+        local maxW = math.max(TopRowW, hasBottom and BottomRowW or 0)
+        WmRoot.Size = UDim2.fromOffset(math.max(25, maxW), hasBottom and 56 or 25)
+        if WmOpts.SideAlign then
+            TopRowHolder.AnchorPoint = Vector2.new(0, 0)
+            TopRowHolder.Position = UDim2.fromOffset(0, 0)
+            BottomRowHolder.AnchorPoint = Vector2.new(0, 0)
+            BottomRowHolder.Position = UDim2.fromOffset(0, 31)
+        else
+            TopRowHolder.AnchorPoint = Vector2.new(0.5, 0)
+            TopRowHolder.Position = UDim2.new(0.5, 0, 0, 0)
+            BottomRowHolder.AnchorPoint = Vector2.new(0.5, 0)
+            BottomRowHolder.Position = UDim2.new(0.5, 0, 0, 31)
+        end
+    end
 
     local function ApplyWmPosition()
         if UserMoved then
@@ -4101,7 +4121,6 @@ do
             ZIndex = 4,
             Parent = Parent,
         })
-        -- Orbit ring
         local Orbit = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
             BackgroundTransparency = 1,
@@ -4112,7 +4131,6 @@ do
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Orbit })
         New("UIStroke", { Color = "AccentColor", Thickness = 1, Transparency = 0.45, Parent = Orbit })
-        -- Main Lua sphere
         local Planet = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "AccentColor",
@@ -4123,7 +4141,6 @@ do
             Parent = Wrap,
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Planet })
-        -- Lunar inner crescent cutout
         local Cut = New("Frame", {
             BackgroundColor3 = function()
                 return GetWmBgColor()
@@ -4135,7 +4152,6 @@ do
             Parent = Planet,
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Cut })
-        -- Orbiting moon satellite
         local Moon = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = "AccentColor",
@@ -4151,13 +4167,12 @@ do
 
     local function CreateWmPill(Parent: GuiObject, Order: number, PadH: number): Frame
         local Pill = New("Frame", {
-            AutomaticSize = Enum.AutomaticSize.X,
             BackgroundColor3 = function()
                 return GetWmBgColor()
             end,
             BackgroundTransparency = 0.16,
             LayoutOrder = Order,
-            Size = UDim2.fromOffset(0, 25),
+            Size = UDim2.fromOffset(25, 25),
             ZIndex = 3,
             Parent = Parent,
         })
@@ -4178,12 +4193,11 @@ do
         return Pill
     end
 
-    local function PopulateSection(Container: GuiObject, Sec: { Icon: string?, Text: string? }, Order: number, LabelPool: { TextLabel })
+    local function PopulateSection(Container: GuiObject, Sec: { Icon: string?, Text: string? }, Order: number)
         local Inner = New("Frame", {
-            AutomaticSize = Enum.AutomaticSize.X,
             BackgroundTransparency = 1,
             LayoutOrder = Order,
-            Size = UDim2.fromScale(0, 1),
+            Size = UDim2.fromOffset(20, 25),
             ZIndex = 4,
             Parent = Container,
         })
@@ -4195,8 +4209,10 @@ do
             SortOrder = Enum.SortOrder.LayoutOrder,
             Parent = Inner,
         })
+        local iconW = 0
         if Sec.Icon == "lua" then
             BuildLuaLogo(Inner, 1)
+            iconW = 15
         elseif Sec.Icon and Sec.Icon ~= "" then
             local IconObj = Library:GetCustomIcon(Sec.Icon) or Library:GetDeltaIcon(Sec.Icon) or Library:GetIcon(DeltaIconLucideFallback[Sec.Icon] or Sec.Icon)
             if IconObj then
@@ -4207,34 +4223,79 @@ do
                     ZIndex = 4,
                     Parent = Inner,
                 })
+                iconW = 13
             end
         end
-        if Sec.Text ~= nil and Sec.Text ~= "" then
-            local Lbl = New("TextLabel", {
-                AutomaticSize = Enum.AutomaticSize.X,
+        local Lbl = nil
+        local textStr = (Sec.Text ~= nil) and tostring(Sec.Text) or ""
+        local textW = MeasureWmText(textStr)
+        if textStr ~= "" then
+            Lbl = New("TextLabel", {
                 BackgroundTransparency = 1,
+                Font = Enum.Font.GothamMedium,
                 LayoutOrder = 2,
-                Size = UDim2.fromScale(0, 1),
-                Text = tostring(Sec.Text),
+                Size = UDim2.fromOffset(textW, 25),
+                Text = textStr,
                 TextColor3 = "FontColor",
                 TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 4,
                 Parent = Inner,
             })
-            table.insert(LabelPool, Lbl)
-        else
-            local Dummy = { Text = "" }
-            table.insert(LabelPool, Dummy :: any)
         end
+        local slotW = (iconW > 0 and textW > 0) and (iconW + 5 + textW) or (iconW + textW)
+        Inner.Size = UDim2.fromOffset(math.max(1, slotW), 25)
+        return {
+            Inner = Inner,
+            Label = Lbl,
+            IconW = iconW,
+            Width = slotW,
+            LastText = textStr,
+        }
     end
 
-    local function BuildWmRow(Holder: Frame, Sections: { { Icon: string?, Text: string? } }, LabelPool: { TextLabel })
+    local function UpdateWmRowSizes(Holder: Frame, Slots: { any }, isBottom: boolean)
+        if #Slots == 0 then
+            if isBottom then BottomRowW = 0 else TopRowW = 0 end
+            Holder.Size = UDim2.fromOffset(0, 25)
+            return
+        end
+        local rowW = 0
+        if WmOpts.Split then
+            for i, slot in Slots do
+                local tw = slot.Label and MeasureWmText(slot.LastText) or 0
+                if slot.Label then slot.Label.Size = UDim2.fromOffset(tw, 25) end
+                local sw = (slot.IconW > 0 and tw > 0) and (slot.IconW + 5 + tw) or (slot.IconW + tw)
+                slot.Inner.Size = UDim2.fromOffset(math.max(1, sw), 25)
+                local pillW = math.max(25, sw + 16)
+                slot.Pill.Size = UDim2.fromOffset(pillW, 25)
+                rowW += pillW + ((i > 1) and 5 or 0)
+            end
+        else
+            local bar = Slots[1].Pill
+            local innerW = 0
+            for i, slot in Slots do
+                local tw = slot.Label and MeasureWmText(slot.LastText) or 0
+                if slot.Label then slot.Label.Size = UDim2.fromOffset(tw, 25) end
+                local sw = (slot.IconW > 0 and tw > 0) and (slot.IconW + 5 + tw) or (slot.IconW + tw)
+                slot.Inner.Size = UDim2.fromOffset(math.max(1, sw), 25)
+                innerW += sw + ((i > 1) and (7 + 1 + 7) or 0)
+            end
+            rowW = math.max(25, innerW + 18)
+            bar.Size = UDim2.fromOffset(rowW, 25)
+        end
+        Holder.Size = UDim2.fromOffset(rowW, 25)
+        if isBottom then BottomRowW = rowW else TopRowW = rowW end
+    end
+
+    local function BuildWmRow(Holder: Frame, Sections: { { Icon: string?, Text: string? } }, Slots: { any }, isBottom: boolean)
         for _, ch in Holder:GetChildren() do
             ch:Destroy()
         end
-        table.clear(LabelPool)
+        table.clear(Slots)
         if not Sections or #Sections == 0 then
             Holder.Visible = false
+            UpdateWmRowSizes(Holder, Slots, isBottom)
             return
         end
         Holder.Visible = true
@@ -4250,7 +4311,9 @@ do
             })
             for idx, sec in Sections do
                 local Pill = CreateWmPill(Holder, idx, 8)
-                PopulateSection(Pill, sec, 1, LabelPool)
+                local slot = PopulateSection(Pill, sec, 1)
+                slot.Pill = Pill
+                table.insert(Slots, slot)
             end
         else
             local Bar = CreateWmPill(Holder, 1, 9)
@@ -4269,9 +4332,12 @@ do
                     })
                 end
                 Order += 1
-                PopulateSection(Bar, sec, Order, LabelPool)
+                local slot = PopulateSection(Bar, sec, Order)
+                slot.Pill = Bar
+                table.insert(Slots, slot)
             end
         end
+        UpdateWmRowSizes(Holder, Slots, isBottom)
     end
 
     local function RowSig(Sections: { { Icon: string?, Text: string? } }): string
@@ -4291,24 +4357,37 @@ do
         local Sig = (WmOpts.Split and "S|" or "U|") .. (WmOpts.SideAlign and "L|" or "C|") .. RowSig(TopSections) .. "##" .. RowSig(BottomSections)
         if Sig ~= LastLayoutSig then
             LastLayoutSig = Sig
-            local RootLay = WmRoot:FindFirstChildOfClass("UIListLayout")
-            if RootLay then
-                RootLay.HorizontalAlignment = WmOpts.SideAlign and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center
-            end
-            BuildWmRow(TopRowHolder, TopSections, TopLabels)
-            BuildWmRow(BottomRowHolder, BottomSections, BottomLabels)
+            BuildWmRow(TopRowHolder, TopSections, TopSlots, false)
+            BuildWmRow(BottomRowHolder, BottomSections, BottomSlots, true)
+            SyncRootSize()
             ApplyWmPosition()
         else
+            local changedTop, changedBot = false, false
             for i, s in TopSections do
-                if TopLabels[i] and s.Text ~= nil then
-                    TopLabels[i].Text = tostring(s.Text)
+                local slot = TopSlots[i]
+                if slot and slot.Label and s.Text ~= nil then
+                    local t = tostring(s.Text)
+                    if slot.LastText ~= t then
+                        slot.LastText = t
+                        slot.Label.Text = t
+                        changedTop = true
+                    end
                 end
             end
             for i, s in BottomSections do
-                if BottomLabels[i] and s.Text ~= nil then
-                    BottomLabels[i].Text = tostring(s.Text)
+                local slot = BottomSlots[i]
+                if slot and slot.Label and s.Text ~= nil then
+                    local t = tostring(s.Text)
+                    if slot.LastText ~= t then
+                        slot.LastText = t
+                        slot.Label.Text = t
+                        changedBot = true
+                    end
                 end
             end
+            if changedTop then UpdateWmRowSizes(TopRowHolder, TopSlots, false) end
+            if changedBot then UpdateWmRowSizes(BottomRowHolder, BottomSlots, true) end
+            if changedTop or changedBot then SyncRootSize() end
         end
     end
 
