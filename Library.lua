@@ -9484,11 +9484,15 @@ do
         local ChipButtons = {}
         local LastChipValuesKey = nil
         local CanUseChips = function()
+            local idStr = tostring(Idx or "")
             return Library.UseDeltaChips == true
                 and not Info.Multi
                 and not Info.Searchable
                 and not Info.SpecialType
                 and not Info.ClassicDropdown
+                and idStr:sub(1, 12) ~= "SaveManager_"
+                and idStr:sub(1, 13) ~= "ThemeManager_"
+                and idStr ~= "FontFace"
                 and IsSequentialArray(Dropdown.Values)
                 and #Dropdown.Values > 0
                 and #Dropdown.Values <= 6
