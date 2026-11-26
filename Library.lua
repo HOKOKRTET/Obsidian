@@ -12924,6 +12924,12 @@ function Library:CreateWindow(WindowInfo)
             ClickGuiScale = New("UIScale", {
                 Parent = ClickGuiRoot,
             })
+            if Library.IsMobile then
+                local vpY = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y or 400
+                local mobileScale = math.clamp((vpY - 36) / (PanelHeight + 120), 0.5, 0.85)
+                Library.ScalesOffset[ClickGuiScale] = math.max(0, 1 - mobileScale)
+                ClickGuiScale.Scale = math.max(0.4, Library.DPIScale - Library.ScalesOffset[ClickGuiScale])
+            end
             table.insert(Library.Scales, ClickGuiScale)
 
             local DescLabel = New("TextLabel", {
@@ -15714,7 +15720,14 @@ function Library:CreateWindow(WindowInfo)
 
             table.insert(Module.Connections, HeaderBtn.InputBegan:Connect(function(Input: InputObject)
                 if Module.Disabled then return end
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if IsClickInput(Input) then
+                    if Input.UserInputType == Enum.UserInputType.Touch and #Module.Elements > 0 then
+                        local rightEdge = HeaderBtn.AbsolutePosition.X + HeaderBtn.AbsoluteSize.X
+                        if Input.Position.X >= rightEdge - (54 * Library.DPIScale) then
+                            Module:SetExpanded(not Module.Expanded)
+                            return
+                        end
+                    end
                     Module:SetValue(not Module.Value)
                 elseif Input.UserInputType == Enum.UserInputType.MouseButton2 then
                     if #Module.Elements > 0 then
