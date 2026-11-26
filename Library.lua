@@ -1686,22 +1686,24 @@ local DeltaIconGlyphs = {
 
 local DeltaIconAliases = {
     ["delta:combat"] = "V", ["combat"] = "V", ["swords"] = "V",
-    ["delta:movement"] = "I", ["movement"] = "I", ["wind"] = "I", ["footprints"] = "I",
-    ["delta:render"] = "t", ["render"] = "t", ["eye"] = "t", ["visuals"] = "t",
+    ["delta:movement"] = "I", ["movement"] = "I", ["wind"] = "I", ["footprints"] = "I", ["move"] = "I",
+    ["delta:render"] = "#", ["render"] = "#", ["eye"] = "#", ["visuals"] = "#",
     ["delta:player"] = "L", ["player"] = "L", ["user"] = "L",
-    ["delta:misc"] = "D", ["misc"] = "D", ["boxes"] = "D", ["layers"] = "D",
+    ["delta:misc"] = "h", ["misc"] = "h", ["boxes"] = "h", ["layers"] = "h",
+    ["delta:exploits"] = "g", ["exploits"] = "g", ["zap"] = "g",
     ["delta:bind"] = "C", ["delta:keybind"] = "C", ["keyboard"] = "C",
     ["delta:check"] = "m",
     ["delta:cross"] = "u",
-    ["delta:palette"] = "J", ["delta:color"] = "J", ["pipette"] = "J",
-    ["delta:notify"] = "Q", ["delta:notification"] = "Q",
+    ["delta:palette"] = "J", ["delta:color"] = "J", ["delta:theme"] = "J", ["pipette"] = "J", ["paintbrush"] = "J",
+    ["delta:notify"] = "B", ["delta:notification"] = "B",
+    ["delta:search"] = "G",
     ["delta:info"] = "o",
-    ["delta:settings"] = "g", ["ui settings"] = "g", ["settings"] = "g",
+    ["delta:settings"] = "%", ["ui settings"] = "%", ["settings"] = "%",
 }
 
 local DeltaIconLucideFallback = {
-    V = "swords", I = "wind", t = "eye", L = "user", D = "boxes",
-    C = "keyboard", m = "check", u = "x", J = "pipette", Q = "bell", o = "info", g = "settings",
+    V = "swords", I = "wind", ["#"] = "eye", L = "user", h = "boxes", g = "zap",
+    C = "keyboard", m = "check", u = "x", J = "pipette", B = "bell", G = "search", o = "info", ["%"] = "settings",
 }
 
 function Library:GetDeltaIcon(IconName: string): Icon?
@@ -13014,11 +13016,13 @@ function Library:CreateWindow(WindowInfo)
             SearchBox = New("TextBox", {
                 BackgroundTransparency = 1,
                 ClearTextOnFocus = false,
+                PlaceholderColor3 = Color3.fromRGB(165, 173, 195),
                 PlaceholderText = WindowInfo.SearchPlaceholder or "Поиск по модулям",
                 Size = UDim2.fromScale(1, 1),
                 Text = "",
+                TextColor3 = "FontColor",
                 TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
+                TextXAlignment = Enum.TextXAlignment.Center,
                 ZIndex = 5,
                 Parent = SearchHolder,
             })
@@ -14387,6 +14391,13 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:RefreshSides()
+            if WindowInfo.ClickGui and not ParentTab then
+                local Offset = WarningBoxHolder.Visible and WarningBox.Size.Y.Offset + 8 or 0
+                TabLeft.Position = UDim2.fromOffset(0, Offset)
+                TabLeft.Size = UDim2.new(1, 0, 1, -Offset)
+                return
+            end
+
             if HasSubTabs then
                 if Tab.ActiveSubTab then
                     Tab.ActiveSubTab:RefreshSides()
