@@ -2065,6 +2065,7 @@ local InnerCross = {}
 local CursorCustomImage
 do
     Cursor = New("Frame", {
+        Active = false,
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(1, 1),
@@ -17529,14 +17530,27 @@ function Library:CreateWindow(WindowInfo)
             Library.OriginalMouseIconEnabled = UserInputService.MouseIconEnabled
 
             pcall(function() RunService:UnbindFromRenderStep(ShowCursorBinding) end)
+            local LastCursorX, LastCursorY = -1, -1
+            local LastCustomState = nil
             RunService:BindToRenderStep(ShowCursorBinding, Enum.RenderPriority.Last.Value, function()
-                UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
-
-                Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
-                Cursor.Visible = Library.ShowCustomCursor
-
                 if Library.Unloaded == true or not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
                     RestoreMouseIcon()
+                    return
+                end
+
+                local Custom = Library.ShowCustomCursor == true
+                if Custom ~= LastCustomState then
+                    LastCustomState = Custom
+                    UserInputService.MouseIconEnabled = not Custom
+                    Cursor.Visible = Custom
+                end
+
+                if Custom then
+                    local X, Y = Mouse.X, Mouse.Y
+                    if X ~= LastCursorX or Y ~= LastCursorY then
+                        LastCursorX, LastCursorY = X, Y
+                        Cursor.Position = UDim2.fromOffset(X, Y)
+                    end
                 end
             end)
         elseif not Library.Toggled then
