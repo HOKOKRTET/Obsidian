@@ -59,75 +59,87 @@ local ThemeManager = {
     BuiltInThemes = {
         ["Default"] = {
             1,
-            { FontColor = "ffffff", MainColor = "191919", AccentColor = "7d55ff", BackgroundColor = "0f0f0f", OutlineColor = "282828", BackgroundImage = "" },
+            { FontColor = "ffffff", MainColor = "10121c", AccentColor = "859cff", BackgroundColor = "080808", OutlineColor = "303444", BackgroundImage = "" },
+        },
+        ["Delta Dark"] = {
+            2,
+            { FontColor = "ffffff", MainColor = "10121c", AccentColor = "859cff", BackgroundColor = "080808", OutlineColor = "303444", BackgroundImage = "" },
+        },
+        ["Delta Light"] = {
+            3,
+            { FontColor = "111216", MainColor = "f0f2f5", AccentColor = "859cff", BackgroundColor = "fdfeff", OutlineColor = "dfe3ea", BackgroundImage = "" },
         },
         ["BBot"] = {
-            2,
+            4,
             { FontColor = "ffffff", MainColor = "1e1e1e", AccentColor = "7e48a3", BackgroundColor = "232323", OutlineColor = "141414", BackgroundImage = "" },
         },
         ["Fatality"] = {
-            3,
+            5,
             { FontColor = "ffffff", MainColor = "1e1842", AccentColor = "c50754", BackgroundColor = "191335", OutlineColor = "3c355d", BackgroundImage = "" },
         },
         ["Jester"] = {
-            4,
+            6,
             { FontColor = "ffffff", MainColor = "242424", AccentColor = "db4467", BackgroundColor = "1c1c1c", OutlineColor = "373737", BackgroundImage = "" },
         },
         ["Mint"] = {
-            5,
+            7,
             { FontColor = "ffffff", MainColor = "242424", AccentColor = "3db488", BackgroundColor = "1c1c1c", OutlineColor = "373737", BackgroundImage = "" },
         },
         ["Tokyo Night"] = {
-            6,
+            8,
             { FontColor = "ffffff", MainColor = "191925", AccentColor = "6759b3", BackgroundColor = "16161f", OutlineColor = "323232", BackgroundImage = "" },
         },
         ["Ubuntu"] = {
-            7,
+            9,
             { FontColor = "ffffff", MainColor = "3e3e3e", AccentColor = "e2581e", BackgroundColor = "323232", OutlineColor = "191919", BackgroundImage = "" },
         },
         ["Quartz"] = {
-            8,
+            10,
             { FontColor = "ffffff", MainColor = "232330", AccentColor = "426e87", BackgroundColor = "1d1b26", OutlineColor = "27232f", BackgroundImage = "" },
         },
         ["Nord"] = {
-            9,
+            11,
             { FontColor = "eceff4", MainColor = "3b4252", AccentColor = "88c0d0", BackgroundColor = "2e3440", OutlineColor = "4c566a", BackgroundImage = "" },
         },
         ["Dracula"] = {
-            10,
+            12,
             { FontColor = "f8f8f2", MainColor = "44475a", AccentColor = "ff79c6", BackgroundColor = "282a36", OutlineColor = "6272a4", BackgroundImage = "" },
         },
         ["Monokai"] = {
-            11,
+            13,
             { FontColor = "f8f8f2", MainColor = "272822", AccentColor = "f92672", BackgroundColor = "1e1f1c", OutlineColor = "49483e", BackgroundImage = "" },
         },
         ["Gruvbox"] = {
-            12,
+            14,
             { FontColor = "ebdbb2", MainColor = "3c3836", AccentColor = "fb4934", BackgroundColor = "282828", OutlineColor = "504945", BackgroundImage = "" },
         },
         ["Solarized"] = {
-            13,
+            15,
             { FontColor = "839496", MainColor = "073642", AccentColor = "cb4b16", BackgroundColor = "002b36", OutlineColor = "586e75", BackgroundImage = "" },
         },
         ["Catppuccin"] = {
-            14,
+            16,
             { FontColor = "d9e0ee", MainColor = "302d41", AccentColor = "f5c2e7", BackgroundColor = "1e1e2e", OutlineColor = "575268", BackgroundImage = "" },
         },
         ["One Dark"] = {
-            15,
+            17,
             { FontColor = "abb2bf", MainColor = "282c34", AccentColor = "c678dd", BackgroundColor = "21252b", OutlineColor = "5c6370", BackgroundImage = "" },
         },
         ["Cyberpunk"] = {
-            16,
+            18,
             { FontColor = "f9f9f9", MainColor = "262335", AccentColor = "00ff9f", BackgroundColor = "1a1a2e", OutlineColor = "413c5e", BackgroundImage = "" },
         },
         ["Oceanic Next"] = {
-            17,
+            19,
             { FontColor = "d8dee9", MainColor = "1b2b34", AccentColor = "6699cc", BackgroundColor = "16232a", OutlineColor = "343d46", BackgroundImage = "" },
         },
         ["Material"] = {
-            18,
+            20,
             { FontColor = "eeffff", MainColor = "212121", AccentColor = "82aaff", BackgroundColor = "151515", OutlineColor = "424242", BackgroundImage = "" },
+        },
+        ["Obsidian Classic"] = {
+            21,
+            { FontColor = "ffffff", MainColor = "191919", AccentColor = "7d55ff", BackgroundColor = "0f0f0f", OutlineColor = "282828", BackgroundImage = "" },
         }
     }
 }
@@ -459,12 +471,32 @@ function ThemeManager:SetDefaultTheme(Theme: any)
         FinalTheme.FontFace = FontFace.Name
 
     elseif FontFaceType == "string" then
-        LibraryScheme.Font = Font.fromEnum(Enum.Font[FontFace] :: Enum.Font)
-        FinalTheme.FontFace = FontFace
+        local ok, enumFont = pcall(function()
+            return (Enum.Font :: any)[FontFace]
+        end)
+        if ok and typeof(enumFont) == "EnumItem" then
+            LibraryScheme.Font = Font.fromEnum(enumFont)
+            FinalTheme.FontFace = FontFace
+        else
+            local okName, namedFont = pcall(Font.fromName, FontFace)
+            if okName and typeof(namedFont) == "Font" then
+                LibraryScheme.Font = namedFont
+                FinalTheme.FontFace = FontFace
+            else
+                LibraryScheme.Font = Font.fromEnum(Enum.Font.BuilderSans)
+                FinalTheme.FontFace = "BuilderSans"
+            end
+        end
     
     else
-        LibraryScheme.Font = Font.fromEnum(Enum.Font.Code)
-        FinalTheme.FontFace = "Code"
+        local okM, montserrat = pcall(function() return (Enum.Font :: any).Montserrat end)
+        if okM and typeof(montserrat) == "EnumItem" then
+            LibraryScheme.Font = Font.fromEnum(montserrat)
+            FinalTheme.FontFace = "Montserrat"
+        else
+            LibraryScheme.Font = Font.fromEnum(Enum.Font.BuilderSans)
+            FinalTheme.FontFace = "BuilderSans"
+        end
     end
 
     --// Default Scheme Colors
@@ -658,8 +690,15 @@ function ThemeManager:ApplyThemeData(ThemeData: any): (boolean, string?)
         local FinalValue = Value
 
         if Index == "FontFace" then
-            if typeof(Value) ~= "string" or not Enum.Font[Value] then continue end
-            ThemeManager.Library:SetFont(Enum.Font[Value])
+            if typeof(Value) ~= "string" then continue end
+            local ok = pcall(function()
+                return (Enum.Font :: any)[Value]
+            end)
+            if ok or pcall(Font.fromName, Value) then
+                ThemeManager.Library:SetFont(Value)
+            else
+                continue
+            end
 
         elseif Index == "BackgroundImage" then
             if typeof(Value) ~= "string" then continue end
@@ -818,9 +857,9 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
     Themesbox:AddDropdown("FontFace", {
         Text = "Font Face",
-        Default = "Code",
+        Default = "Montserrat",
         
-        Values = { "BuilderSans", "Code", "Fantasy", "Gotham", "Jura", "Roboto", "RobotoMono", "SourceSans" },
+        Values = { "Montserrat", "BuilderSans", "Code", "Fantasy", "Gotham", "Jura", "Roboto", "RobotoMono", "SourceSans" },
         AllowNull = false,
         Multi = false
     })
@@ -1138,7 +1177,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
     AccentColor:OnChanged(UpdateTheme)
     OutlineColor:OnChanged(UpdateTheme)
     FontColor:OnChanged(UpdateTheme)
-    FontFace:OnChanged(function(Value) ThemeManager.Library:SetFont(Enum.Font[Value]) end)
+    FontFace:OnChanged(function(Value) ThemeManager.Library:SetFont(Value) end)
     BackgroundImage:OnChanged(function(Value) ThemeManager.Library:SetBackgroundImage(Value) end)
 
     --// Load default

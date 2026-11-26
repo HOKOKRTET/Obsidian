@@ -103,10 +103,16 @@ local ElementParser = {}; do
     CreateParser(
         "Toggle", "Toggles",
         function(Index: string, Toggle: any)
+            if Toggle.IsModule then
+                return { value = Toggle.Value, keybind = Toggle.Keybind }
+            end
             return { value = Toggle.Value }
         end,
         function(Element: any?, Data: any)
             if not Element then return end
+            if Element.IsModule and Data.keybind ~= nil and Element.SetKeybind then
+                Element:SetKeybind(Data.keybind)
+            end
             if Element.Value == Data.value then
                 Element:RunChanged()
                 return
