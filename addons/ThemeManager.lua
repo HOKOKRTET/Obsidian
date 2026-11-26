@@ -1180,8 +1180,10 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
     FontFace:OnChanged(function(Value) ThemeManager.Library:SetFont(Value) end)
     BackgroundImage:OnChanged(function(Value) ThemeManager.Library:SetBackgroundImage(Value) end)
 
-    --// Load default
-    ThemeManager:LoadDefault()
+    --// Load default only on initial build so live layout switches preserve active theme
+    if not ThemeManager.AppliedToTab then
+        ThemeManager:LoadDefault()
+    end
     ThemeManager:UpdateContrastWarning()
     ThemeManager.AppliedToTab = true
     RefreshDefaultThemeLabel()

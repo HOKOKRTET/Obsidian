@@ -831,6 +831,12 @@ function SaveManager:BuildConfigSection(Tab: any, IconName: string)
         IconName = IconName or "folder-cog",
     })
 
+    return SaveManager:ApplyToGroupbox(ConfigurationBox)
+end
+
+function SaveManager:ApplyToGroupbox(ConfigurationBox: any)
+    assert(SaveManager.Library, "Library is not set, call SaveManager:SetLibrary(Library) first.")
+
     local ConfigNameInput, ConfigList, ConfigJSONInput, AutoloadConfigLabel
     local function RefreshList()
         ConfigList:SetValues(SaveManager:RefreshConfigList())
