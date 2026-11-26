@@ -15950,14 +15950,14 @@ function Library:CreateWindow(WindowInfo)
                     end
                 end
 
-                for _, Element in Groupbox.Elements do
+                for _, Element in table.clone(Groupbox.Elements) do
                     if Element.Destroy then
                         Element:Destroy()
                     end
                 end
                 table.clear(Groupbox.Elements)
 
-                for _, SubDepbox in Groupbox.DependencyBoxes do
+                for _, SubDepbox in table.clone(Groupbox.DependencyBoxes) do
                     if SubDepbox.Destroy then
                         SubDepbox:Destroy()
                     end
@@ -16487,8 +16487,21 @@ function Library:CreateWindow(WindowInfo)
             function Module:Destroy()
                 Module.Destroyed = true
                 for _, Conn in Module.Connections do Conn:Disconnect() end
-                for _, Elem in Module.Elements do
+                for _, Elem in table.clone(Module.Elements) do
                     if Elem.Destroy then Elem:Destroy() end
+                end
+                table.clear(Module.Elements)
+                if Module.DependencyBoxes then
+                    for _, Dep in table.clone(Module.DependencyBoxes) do
+                        if Dep.Destroy then Dep:Destroy() end
+                    end
+                    table.clear(Module.DependencyBoxes)
+                end
+                if Module.Addons then
+                    for Index = #Module.Addons, 1, -1 do
+                        local Addon = table.remove(Module.Addons, Index)
+                        if Addon and Addon.Destroy then Addon:Destroy() end
+                    end
                 end
                 if ModuleCard then ModuleCard:Destroy() end
                 Toggles[Idx] = nil
@@ -16722,6 +16735,50 @@ function Library:CreateWindow(WindowInfo)
             end
         end
 
+        function Tab:ClearContent()
+            if Tab.Modules then
+                for _, Mod in table.clone(Tab.Modules) do
+                    if Mod and Mod.Destroy and not Mod.Destroyed then
+                        Mod:Destroy()
+                    end
+                end
+                table.clear(Tab.Modules)
+            end
+
+            for _, Groupbox in table.clone(Tab.Groupboxes) do
+                if Groupbox and Groupbox.Destroy and not Groupbox.Destroyed then
+                    Groupbox:Destroy()
+                end
+            end
+            table.clear(Tab.Groupboxes)
+
+            for _, Tabbox in table.clone(Tab.Tabboxes) do
+                if Tabbox and Tabbox.Destroy and not Tabbox.Destroyed then
+                    Tabbox:Destroy()
+                end
+            end
+            table.clear(Tab.Tabboxes)
+
+            for _, DepGroupbox in table.clone(Tab.DependencyGroupboxes) do
+                if DepGroupbox and DepGroupbox.Destroy and not DepGroupbox.Destroyed then
+                    DepGroupbox:Destroy()
+                end
+            end
+            table.clear(Tab.DependencyGroupboxes)
+
+            if WindowInfo.ClickGui and TabLeft then
+                for _, Child in TabLeft:GetChildren() do
+                    if not Child:IsA("UIListLayout") and not Child:IsA("UIPadding") then
+                        Child:Destroy()
+                    end
+                end
+            end
+
+            if Library.KeybindMenu and Library.KeybindMenu.UpdateSize then
+                Library.KeybindMenu:UpdateSize()
+            end
+        end
+
         function Tab:Destroy()
             Tab.Destroyed = true
 
@@ -16736,21 +16793,21 @@ function Library:CreateWindow(WindowInfo)
                 Tab.TooltipTable = nil
             end
 
-            for _, Groupbox in Tab.Groupboxes do
+            for _, Groupbox in table.clone(Tab.Groupboxes) do
                 if Groupbox.Destroy then
                     Groupbox:Destroy()
                 end
             end
             table.clear(Tab.Groupboxes)
 
-            for _, Tabbox in Tab.Tabboxes do
+            for _, Tabbox in table.clone(Tab.Tabboxes) do
                 if Tabbox.Destroy then
                     Tabbox:Destroy()
                 end
             end
             table.clear(Tab.Tabboxes)
 
-            for _, DepGroupbox in Tab.DependencyGroupboxes do
+            for _, DepGroupbox in table.clone(Tab.DependencyGroupboxes) do
                 if DepGroupbox.Destroy then
                     DepGroupbox:Destroy()
                 end
