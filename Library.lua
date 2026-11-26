@@ -435,7 +435,7 @@ local Templates = {
         PanelWidth = 250,
         PanelHeight = 540,
         PanelGap = 16,
-        SearchPlaceholder = "Поиск по модулям",
+        SearchPlaceholder = "Search modules",
         NotifyOnModuleToggle = false,
         DraggablePanels = false,
 
@@ -11856,7 +11856,7 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.fromScale(1, 0),
             Size = UDim2.fromOffset(0, 14),
-            Text = "0 из 0",
+            Text = "0 of 0",
             TextColor3 = function() return Library:GetDeltaDisabledTextColor() end,
             TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Right,
@@ -11889,7 +11889,7 @@ do
                     SelectedCount += 1
                 end
             end
-            CounterLabel.Text = string.format("%d из %d", SelectedCount, TotalCount)
+            CounterLabel.Text = string.format("%d of %d", SelectedCount, TotalCount)
 
             for _, Btn in ChipButtons do
                 local Val = Btn:GetAttribute("ModeValue")
@@ -13017,7 +13017,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 ClearTextOnFocus = false,
                 PlaceholderColor3 = Color3.fromRGB(165, 173, 195),
-                PlaceholderText = WindowInfo.SearchPlaceholder or "Поиск по модулям",
+                PlaceholderText = WindowInfo.SearchPlaceholder or "Search modules",
                 Size = UDim2.fromScale(1, 1),
                 Text = "",
                 TextColor3 = "FontColor",
@@ -15645,7 +15645,7 @@ function Library:CreateWindow(WindowInfo)
                 if not Silent and (Module.Notify == true or (Module.Notify == nil and WindowInfo.NotifyOnModuleToggle)) then
                     Library:Notify({
                         Title = ModName,
-                        Description = ModName .. (NewState and " активирован" or " деактивирован"),
+                        Description = ModName .. (NewState and " enabled" or " disabled"),
                         Time = 1.6,
                         Icon = "delta:notify",
                         IconColor = NewState and Color3.fromRGB(130, 220, 150) or Color3.fromRGB(230, 130, 130),
