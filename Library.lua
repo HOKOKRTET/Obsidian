@@ -5950,9 +5950,6 @@ do
         Library.Registry[ColorMenu.Menu].BackgroundColor3 = function()
             return Library:GetDeltaGlassColor()
         end
-        Library:AddGlowShadow(ColorMenu.Menu, 18, function()
-            return Library:GetDeltaPanelColor()
-        end, 0.25)
         ColorPicker.ColorMenu = ColorMenu
 
         --// Content Holder \\--
@@ -6527,6 +6524,11 @@ do
                 math.floor(ColorPicker.Value.G * 255),
                 math.floor(ColorPicker.Value.B * 255),
             }, ", ")
+
+            if ColorDot then
+                ColorDot.BackgroundColor3 = ColorPicker.Value
+                ColorDot.BackgroundTransparency = ColorPicker.Transparency
+            end
 
             RefreshFooterInfo()
         end
