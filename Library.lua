@@ -103,6 +103,22 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
+
+    ClickSoundWii = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/sounds/wii_click.mp3",
+        URL = BaseURL .. "assets/sounds/wii_click.mp3",
+
+        Id = nil,
+    },
+
+    ClickSoundLeapPad = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/sounds/leappad_click.mp3",
+        URL = BaseURL .. "assets/sounds/leappad_click.mp3",
+
+        Id = nil,
+    },
 }
 do
     local function RecursiveCreatePath(Path: string, IsFile: boolean?)
@@ -1739,6 +1755,38 @@ function Library:GetAsset(AssetName: string): string?
         return nil
     end
     return CustomImageManager.GetAsset(AssetName)
+end
+
+Library.ToggleSoundAsset = "ClickSoundWii"
+Library.NotifySoundAsset = "ClickSoundLeapPad"
+
+function Library:SetUISounds(ToggleAsset: string?, NotifyAsset: string?)
+    if ToggleAsset ~= nil then Library.ToggleSoundAsset = ToggleAsset end
+    if NotifyAsset ~= nil then Library.NotifySoundAsset = NotifyAsset end
+end
+
+function Library:PlayCustomSound(AssetName: string?, Volume: number?)
+    if not AssetName or AssetName == "" or AssetName == "None" then return end
+    local SoundUrl = Library:GetAsset(AssetName)
+    if not SoundUrl or SoundUrl == "" or SoundUrl == "rbxassetid://0" then return end
+    task.spawn(function()
+        pcall(function()
+            local S = New("Sound", {
+                SoundId = SoundUrl,
+                Volume = Volume or 0.5,
+                Parent = SoundService,
+            })
+            S:Play()
+            local cleaned = false
+            local function cleanup()
+                if cleaned then return end
+                cleaned = true
+                pcall(function() S:Destroy() end)
+            end
+            S.Ended:Once(cleanup)
+            task.delay(3, cleanup)
+        end)
+    end)
 end
 
 function Library:GetDeltaIcon(IconName: string): Icon?
@@ -8538,8 +8586,12 @@ do
         end
 
         function Toggle:SetValue(Value)
+            local Prev = Toggle.Value
             Toggle.Value = Value
             Toggle:Display()
+            if Prev ~= Value then
+                Library:PlayCustomSound(Library.ToggleSoundAsset, 0.45)
+            end
 
             for _, Addon in Toggle.Addons do
                 if Addon.Type == "KeyPicker" and Addon.SyncToggleState then
@@ -8886,8 +8938,12 @@ do
         end
 
         function Toggle:SetValue(Value)
+            local Prev = Toggle.Value
             Toggle.Value = Value
             Toggle:Display()
+            if Prev ~= Value then
+                Library:PlayCustomSound(Library.ToggleSoundAsset, 0.45)
+            end
 
             for _, Addon in Toggle.Addons do
                 if Addon.Type == "KeyPicker" and Addon.SyncToggleState then
@@ -13184,18 +13240,34 @@ function Library:Notify(...)
     if typeof(Data.Time) == "Instance" then
         TimerFill.Size = UDim2.fromScale(0, 1)
     end
-    if Data.SoundId then
-        local SoundId = Data.SoundId
+    local SoundToPlay = Data.SoundId
+    if not SoundToPlay and Library.NotifySoundAsset and Library.NotifySoundAsset ~= "None" then
+        SoundToPlay = Library:GetAsset(Library.NotifySoundAsset)
+    end
+    if SoundToPlay and SoundToPlay ~= "" and SoundToPlay ~= "rbxassetid://0" then
+        local SoundId = SoundToPlay
         if typeof(SoundId) == "number" then
             SoundId = string.format("rbxassetid://%d", SoundId)
         end
 
-        New("Sound", {
-            SoundId = SoundId,
-            Volume = tonumber(Data.Volume) or 3,
-            PlayOnRemove = true,
-            Parent = SoundService,
-        }):Destroy()
+        task.spawn(function()
+            pcall(function()
+                local S = New("Sound", {
+                    SoundId = SoundId,
+                    Volume = Data.SoundId and (tonumber(Data.Volume) or 3) or 0.55,
+                    Parent = SoundService,
+                })
+                S:Play()
+                local cleaned = false
+                local function cleanup()
+                    if cleaned then return end
+                    cleaned = true
+                    pcall(function() S:Destroy() end)
+                end
+                S.Ended:Once(cleanup)
+                task.delay(3, cleanup)
+            end)
+        end)
     end
 
     Data.Holder = Holder
@@ -16352,6 +16424,9 @@ function Library:CreateWindow(WindowInfo)
                 if Module.Value == NewState then return end
                 Module.Value = NewState
                 Module:Display()
+                if not Silent then
+                    Library:PlayCustomSound(Library.ToggleSoundAsset, 0.45)
+                end
                 Library:UpdateDependencyBoxes()
                 Module:RunChanged()
 
