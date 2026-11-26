@@ -17521,55 +17521,42 @@ function Library:CreateWindow(WindowInfo)
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
             local Toggled = Library.Toggled
-            Fading = true
+            if WindowInfo.ClickGui and ClickGuiRoot then
+                -- Instant 0-lag toggle for ClickGui (no CanvasGroup or UIScale thrash)
+                ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
+                MainFrame.Visible = Toggled
+            else
+                Fading = true
 
-            local FadeGroup = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                GroupTransparency = Toggled and 1 or 0,
-                Name = "MainFade",
-                Size = UDim2.fromScale(1, 1),
-                ZIndex = MainFrame.ZIndex,
-                Parent = ScreenGui,
-            })
+                local FadeGroup = New("CanvasGroup", {
+                    BackgroundTransparency = 1,
+                    GroupTransparency = Toggled and 1 or 0,
+                    Name = "MainFade",
+                    Size = UDim2.fromScale(1, 1),
+                    ZIndex = MainFrame.ZIndex,
+                    Parent = ScreenGui,
+                })
 
-            MainFrame.Visible = true
-            MainFrame.Parent = FadeGroup
+                MainFrame.Visible = true
+                MainFrame.Parent = FadeGroup
 
-            if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
-                if Toggled then
-                    ClickGuiScale.Scale = Library.DPIScale * 0.82
-                    ClickGuiRoot.Position = UDim2.new(0.5, 0, 0.5, 28)
-                end
+                task.spawn(function()
+                    RunService.Heartbeat:Wait()
+                    RunService.Heartbeat:Wait()
+
+                    TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
+                    task.wait(0.24)
+
+                    Fading = false
+                    if Library.Unloaded then
+                        return
+                    end
+
+                    MainFrame.Visible = Library.Toggled
+                    MainFrame.Parent = ScreenGui
+                    FadeGroup:Destroy()
+                end)
             end
-
-            task.spawn(function()
-                RunService.Heartbeat:Wait()
-                RunService.Heartbeat:Wait()
-
-                TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
-                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
-                    TweenService:Create(ClickGuiScale, TweenInfo.new(0.28, Toggled and Enum.EasingStyle.Back or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        Scale = Toggled and Library.DPIScale or (Library.DPIScale * 0.85),
-                    }):Play()
-                    TweenService:Create(ClickGuiRoot, TweenInfo.new(0.28, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-                        Position = Toggled and UDim2.fromScale(0.5, 0.5) or UDim2.new(0.5, 0, 0.5, 24),
-                    }):Play()
-                end
-                task.wait(0.28)
-
-                Fading = false
-                if Library.Unloaded then
-                    return
-                end
-
-                MainFrame.Visible = Library.Toggled
-                MainFrame.Parent = ScreenGui
-                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
-                    ClickGuiScale.Scale = Library.DPIScale
-                    ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
-                end
-                FadeGroup:Destroy()
-            end)
         else
             MainFrame.Visible = Library.Toggled
         end
