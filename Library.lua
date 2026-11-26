@@ -18141,7 +18141,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         local function SyncClickGuiBlur()
-            local WantBlur = Library.Toggled and Library.UseClickGuiBlur == true and WindowInfo.ClickGui
+            local WantBlur = Library.Toggled and Library.UseClickGuiBlur == true
             local Blur = Library._clickGuiBlur
             if WantBlur then
                 local okLit, Lighting = pcall(function() return game:GetService("Lighting") end)
@@ -18162,13 +18162,13 @@ function Library:CreateWindow(WindowInfo)
             end
         end
         Library._syncClickGuiBlur = SyncClickGuiBlur
+        SyncClickGuiBlur()
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
             local Toggled = Library.Toggled
             if WindowInfo.ClickGui and ClickGuiRoot then
                 ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
                 MainFrame.Visible = Toggled
-                SyncClickGuiBlur()
                 if Toggled and Library.UseClickGuiAnim and ClickGuiScale then
                     local BaseScale = math.max(0.4, Library.DPIScale - (Library.ScalesOffset[ClickGuiScale] or 0))
                     ClickGuiScale.Scale = BaseScale * 0.94
@@ -18208,7 +18208,6 @@ function Library:CreateWindow(WindowInfo)
             end
         else
             MainFrame.Visible = Library.Toggled
-            SyncClickGuiBlur()
         end
 
         if WindowInfo.UnlockMouseWhileOpen then
