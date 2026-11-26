@@ -87,6 +87,22 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
+
+    DeltaTargetMarker = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/delta/TargetMarker.png",
+        URL = BaseURL .. "assets/delta/TargetMarker.png",
+
+        Id = nil,
+    },
+
+    DeltaBloom = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/delta/Bloom.png",
+        URL = BaseURL .. "assets/delta/Bloom.png",
+
+        Id = nil,
+    },
 }
 do
     local function RecursiveCreatePath(Path: string, IsFile: boolean?)
@@ -1705,6 +1721,13 @@ local DeltaIconLucideFallback = {
     V = "swords", I = "wind", ["#"] = "eye", L = "user", h = "boxes", g = "zap",
     C = "keyboard", m = "check", u = "x", J = "pipette", B = "bell", G = "search", o = "info", ["%"] = "settings",
 }
+
+function Library:GetAsset(AssetName: string): string?
+    if not CustomImageManagerAssets[AssetName] then
+        return nil
+    end
+    return CustomImageManager.GetAsset(AssetName)
+end
 
 function Library:GetDeltaIcon(IconName: string): Icon?
     if typeof(IconName) ~= "string" then
