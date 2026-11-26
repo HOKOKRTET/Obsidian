@@ -1997,9 +1997,21 @@ local function SetAlwaysOnTop(Gui: ScreenGui, Enabled: boolean)
     end)
 end
 
+local function RandomGuiName(): string
+    local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local len = math.random(12, 18)
+    local out = table.create(len)
+    out[1] = chars:sub(math.random(1, 52), math.random(1, 52))
+    for i = 2, len do
+        local idx = math.random(1, #chars)
+        out[i] = chars:sub(idx, idx)
+    end
+    return table.concat(out)
+end
+
 local ScreenGui = New("ScreenGui", {
-    Name = "Obsidian",
-    DisplayOrder = 998,
+    Name = RandomGuiName(),
+    DisplayOrder = math.random(500, 998),
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
@@ -2321,7 +2333,7 @@ function Library:AddGlowShadow(Parent: GuiObject, Spread: number?, ColorSource: 
 
     local Pad = Spread or 24
     local Glow = New("ImageLabel", {
-        Name = "DeltaGlow",
+        Name = RandomGuiName(),
         Active = false,
         BackgroundTransparency = 1,
         Image = CustomImageManager.GetAsset("DeltaGlowShadow"),
@@ -13995,7 +14007,7 @@ function Library:CreateWindow(WindowInfo)
                 end,
                 BackgroundTransparency = 0.215,
                 LayoutOrder = Order,
-                Name = "Panel_" .. tostring(Name),
+                Name = RandomGuiName(),
                 Size = UDim2.fromOffset(PanelW, PanelH),
                 Parent = PanelsContainer,
             })
@@ -14958,9 +14970,6 @@ function Library:CreateWindow(WindowInfo)
                 local BoxIcon = Library:GetCustomIcon(Info.IconName)
                 if BoxIcon then
                     Library:CreateIcon(BoxIcon, {
-                        AnchorPoint = Vector2.new(0, 0.5),
-                        ImageColor3 = BoxIcon.Custom and "WhiteColor" or "AccentColor",
-                        Position = UDim2.fromScale(0, 0.5),
                         Size = UDim2.fromOffset(22, 22),
                         Parent = GroupboxTop,
                     })
@@ -15109,11 +15118,7 @@ function Library:CreateWindow(WindowInfo)
                 GroupboxContainer.Size = UDim2.new(1, 0, 0, ContainerSize)
                 GroupboxLine.Visible = not Groupbox.Collapsed
 
-                if Library.Animations and Library.Animations.Groupbox and Library.Toggled and GroupboxHolder:IsDescendantOf(ScreenGui) then
-                    if GroupboxHolder.Size == TargetSize then
-                        RefreshBoxHolderLayout()
-                        return
-                    end
+                if Library.Animations and Library.Animations.Groupbox then
                     local TweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                     local Tween = TweenService:Create(GroupboxHolder, TweenInfo, { Size = TargetSize })
                     ResizeTween = Tween
@@ -15377,7 +15382,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundColor3 = "AccentColor",
                 BackgroundTransparency = DefaultVal and 0.92 or 1,
                 ClipsDescendants = true,
-                Name = "Module_" .. Idx,
+                Name = RandomGuiName(),
                 Size = UDim2.new(1, 0, 0, 32),
                 Visible = Module.Visible,
                 ZIndex = 3,
@@ -17462,60 +17467,55 @@ function Library:CreateWindow(WindowInfo)
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
             local Toggled = Library.Toggled
-            if WindowInfo.ClickGui and ClickGuiRoot then
-                -- Fast GPU-only position slide (no full-screen CanvasGroup or UIScale tweening that causes 2 FPS layout thrash)
+            Fading = true
+
+            local FadeGroup = New("CanvasGroup", {
+                BackgroundTransparency = 1,
+                GroupTransparency = Toggled and 1 or 0,
+                Name = "MainFade",
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = MainFrame.ZIndex,
+                Parent = ScreenGui,
+            })
+
+            MainFrame.Visible = true
+            MainFrame.Parent = FadeGroup
+
+            if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
                 if Toggled then
-                    ClickGuiRoot.Position = UDim2.new(0.5, 0, 0.5, 18)
-                    MainFrame.Visible = true
-                    TweenService:Create(ClickGuiRoot, TweenInfo.new(0.16, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-                        Position = UDim2.fromScale(0.5, 0.5),
-                    }):Play()
-                else
-                    Fading = true
-                    local Tween = TweenService:Create(ClickGuiRoot, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                        Position = UDim2.new(0.5, 0, 0.5, 14),
-                    })
-                    Tween:Play()
-                    task.delay(0.12, function()
-                        Fading = false
-                        if not Library.Unloaded and not Library.Toggled then
-                            MainFrame.Visible = false
-                            ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
-                        end
-                    end)
+                    ClickGuiScale.Scale = Library.DPIScale * 0.82
+                    ClickGuiRoot.Position = UDim2.new(0.5, 0, 0.5, 28)
                 end
-            else
-                Fading = true
-
-                local FadeGroup = New("CanvasGroup", {
-                    BackgroundTransparency = 1,
-                    GroupTransparency = Toggled and 1 or 0,
-                    Name = "MainFade",
-                    Size = UDim2.fromScale(1, 1),
-                    ZIndex = MainFrame.ZIndex,
-                    Parent = ScreenGui,
-                })
-
-                MainFrame.Visible = true
-                MainFrame.Parent = FadeGroup
-
-                task.spawn(function()
-                    RunService.Heartbeat:Wait()
-                    RunService.Heartbeat:Wait()
-
-                    TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
-                    task.wait(0.24)
-
-                    Fading = false
-                    if Library.Unloaded then
-                        return
-                    end
-
-                    MainFrame.Visible = Library.Toggled
-                    MainFrame.Parent = ScreenGui
-                    FadeGroup:Destroy()
-                end)
             end
+
+            task.spawn(function()
+                RunService.Heartbeat:Wait()
+                RunService.Heartbeat:Wait()
+
+                TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
+                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
+                    TweenService:Create(ClickGuiScale, TweenInfo.new(0.28, Toggled and Enum.EasingStyle.Back or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Scale = Toggled and Library.DPIScale or (Library.DPIScale * 0.85),
+                    }):Play()
+                    TweenService:Create(ClickGuiRoot, TweenInfo.new(0.28, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+                        Position = Toggled and UDim2.fromScale(0.5, 0.5) or UDim2.new(0.5, 0, 0.5, 24),
+                    }):Play()
+                end
+                task.wait(0.28)
+
+                Fading = false
+                if Library.Unloaded then
+                    return
+                end
+
+                MainFrame.Visible = Library.Toggled
+                MainFrame.Parent = ScreenGui
+                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
+                    ClickGuiScale.Scale = Library.DPIScale
+                    ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
+                end
+                FadeGroup:Destroy()
+            end)
         else
             MainFrame.Visible = Library.Toggled
         end
@@ -17770,8 +17770,8 @@ function Library:CreateLoading(LoadingInfo)
 
     --// ScreenGui \\--
     local ScreenGui = New("ScreenGui", {
-        Name = "ObsidianLoading",
-        DisplayOrder = 999,
+        Name = RandomGuiName(),
+        DisplayOrder = math.random(500, 999),
         ResetOnSpawn = false
     })
     ParentUI(ScreenGui)
