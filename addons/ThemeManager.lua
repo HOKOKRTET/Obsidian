@@ -61,11 +61,11 @@ local ThemeManager = {
             1,
             { FontColor = "ffffff", MainColor = "10121c", AccentColor = "859cff", BackgroundColor = "080808", OutlineColor = "303444", BackgroundImage = "" },
         },
-        ["Delta Dark"] = {
+        ["Meteor Dark"] = {
             2,
             { FontColor = "ffffff", MainColor = "10121c", AccentColor = "859cff", BackgroundColor = "080808", OutlineColor = "303444", BackgroundImage = "" },
         },
-        ["Delta Light"] = {
+        ["Meteor Light"] = {
             3,
             { FontColor = "111216", MainColor = "f0f2f5", AccentColor = "859cff", BackgroundColor = "fdfeff", OutlineColor = "dfe3ea", BackgroundImage = "" },
         },
