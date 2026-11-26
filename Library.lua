@@ -2035,6 +2035,7 @@ end
 local ScreenGui = New("ScreenGui", {
     Name = RandomGuiName(),
     DisplayOrder = math.random(500, 998),
+    IgnoreGuiInset = true,
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
