@@ -4189,7 +4189,7 @@ do
         return Wrap
     end
 
-    local function CreateWmPill(Parent: GuiObject, Order: number, PadH: number): Frame
+    local function CreateWmPill(Parent: GuiObject, Order: number, PadH: number): (Frame, Frame)
         local Pill = New("Frame", {
             BackgroundColor3 = function()
                 return GetWmBgColor()
@@ -4205,16 +4205,22 @@ do
             return GetWmBgColor()
         end, 0.28)
         New("UIStroke", { Color = "OutlineColor", Thickness = 1, Transparency = 0.78, Parent = Pill })
-        New("UIPadding", { PaddingLeft = UDim.new(0, PadH), PaddingRight = UDim.new(0, PadH), Parent = Pill })
+        local Content = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = 4,
+            Parent = Pill,
+        })
+        New("UIPadding", { PaddingLeft = UDim.new(0, PadH), PaddingRight = UDim.new(0, PadH), Parent = Content })
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             HorizontalAlignment = Enum.HorizontalAlignment.Left,
             VerticalAlignment = Enum.VerticalAlignment.Center,
             Padding = UDim.new(0, 7),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Parent = Pill,
+            Parent = Content,
         })
-        return Pill
+        return Pill, Content
     end
 
     local function PopulateSection(Container: GuiObject, Sec: { Icon: string?, Text: string? }, Order: number)
@@ -4334,13 +4340,13 @@ do
                 Parent = Holder,
             })
             for idx, sec in Sections do
-                local Pill = CreateWmPill(Holder, idx, 8)
-                local slot = PopulateSection(Pill, sec, 1)
+                local Pill, Content = CreateWmPill(Holder, idx, 8)
+                local slot = PopulateSection(Content, sec, 1)
                 slot.Pill = Pill
                 table.insert(Slots, slot)
             end
         else
-            local Bar = CreateWmPill(Holder, 1, 9)
+            local Bar, BarContent = CreateWmPill(Holder, 1, 9)
             local Order = 0
             for idx, sec in Sections do
                 if idx > 1 then
@@ -4352,11 +4358,11 @@ do
                         LayoutOrder = Order,
                         Size = UDim2.fromOffset(1, 12),
                         ZIndex = 4,
-                        Parent = Bar,
+                        Parent = BarContent,
                     })
                 end
                 Order += 1
-                local slot = PopulateSection(Bar, sec, Order)
+                local slot = PopulateSection(BarContent, sec, Order)
                 slot.Pill = Bar
                 table.insert(Slots, slot)
             end
