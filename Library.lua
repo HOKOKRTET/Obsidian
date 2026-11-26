@@ -12972,10 +12972,16 @@ function Library:CreateWindow(WindowInfo)
                 Parent = PanelsContainer,
             })
 
+            local LastOverflowState = nil
             local function RefreshPanelsAlignment()
                 local ScrollW = PanelsScroll.AbsoluteSize.X
                 local ContentW = PanelsContainer.AbsoluteSize.X
-                if ContentW > ScrollW and ScrollW > 0 then
+                local Overflow = ContentW > ScrollW and ScrollW > 0
+                if Overflow == LastOverflowState then
+                    return
+                end
+                LastOverflowState = Overflow
+                if Overflow then
                     PanelsScroll.ClipsDescendants = true
                     PanelsContainer.AnchorPoint = Vector2.new(0, 0.5)
                     PanelsContainer.Position = UDim2.fromScale(0, 0.5)
@@ -15103,7 +15109,11 @@ function Library:CreateWindow(WindowInfo)
                 GroupboxContainer.Size = UDim2.new(1, 0, 0, ContainerSize)
                 GroupboxLine.Visible = not Groupbox.Collapsed
 
-                if Library.Animations and Library.Animations.Groupbox then
+                if Library.Animations and Library.Animations.Groupbox and Library.Toggled and GroupboxHolder:IsDescendantOf(ScreenGui) then
+                    if GroupboxHolder.Size == TargetSize then
+                        RefreshBoxHolderLayout()
+                        return
+                    end
                     local TweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                     local Tween = TweenService:Create(GroupboxHolder, TweenInfo, { Size = TargetSize })
                     ResizeTween = Tween
@@ -17452,55 +17462,60 @@ function Library:CreateWindow(WindowInfo)
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
             local Toggled = Library.Toggled
-            Fading = true
-
-            local FadeGroup = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                GroupTransparency = Toggled and 1 or 0,
-                Name = "MainFade",
-                Size = UDim2.fromScale(1, 1),
-                ZIndex = MainFrame.ZIndex,
-                Parent = ScreenGui,
-            })
-
-            MainFrame.Visible = true
-            MainFrame.Parent = FadeGroup
-
-            if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
+            if WindowInfo.ClickGui and ClickGuiRoot then
+                -- Fast GPU-only position slide (no full-screen CanvasGroup or UIScale tweening that causes 2 FPS layout thrash)
                 if Toggled then
-                    ClickGuiScale.Scale = Library.DPIScale * 0.82
-                    ClickGuiRoot.Position = UDim2.new(0.5, 0, 0.5, 28)
+                    ClickGuiRoot.Position = UDim2.new(0.5, 0, 0.5, 18)
+                    MainFrame.Visible = true
+                    TweenService:Create(ClickGuiRoot, TweenInfo.new(0.16, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+                        Position = UDim2.fromScale(0.5, 0.5),
+                    }):Play()
+                else
+                    Fading = true
+                    local Tween = TweenService:Create(ClickGuiRoot, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                        Position = UDim2.new(0.5, 0, 0.5, 14),
+                    })
+                    Tween:Play()
+                    task.delay(0.12, function()
+                        Fading = false
+                        if not Library.Unloaded and not Library.Toggled then
+                            MainFrame.Visible = false
+                            ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
+                        end
+                    end)
                 end
+            else
+                Fading = true
+
+                local FadeGroup = New("CanvasGroup", {
+                    BackgroundTransparency = 1,
+                    GroupTransparency = Toggled and 1 or 0,
+                    Name = "MainFade",
+                    Size = UDim2.fromScale(1, 1),
+                    ZIndex = MainFrame.ZIndex,
+                    Parent = ScreenGui,
+                })
+
+                MainFrame.Visible = true
+                MainFrame.Parent = FadeGroup
+
+                task.spawn(function()
+                    RunService.Heartbeat:Wait()
+                    RunService.Heartbeat:Wait()
+
+                    TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
+                    task.wait(0.24)
+
+                    Fading = false
+                    if Library.Unloaded then
+                        return
+                    end
+
+                    MainFrame.Visible = Library.Toggled
+                    MainFrame.Parent = ScreenGui
+                    FadeGroup:Destroy()
+                end)
             end
-
-            task.spawn(function()
-                RunService.Heartbeat:Wait()
-                RunService.Heartbeat:Wait()
-
-                TweenService:Create(FadeGroup, TweenInfo.new(0.24, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), { GroupTransparency = Toggled and 0 or 1 }):Play()
-                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
-                    TweenService:Create(ClickGuiScale, TweenInfo.new(0.28, Toggled and Enum.EasingStyle.Back or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        Scale = Toggled and Library.DPIScale or (Library.DPIScale * 0.85),
-                    }):Play()
-                    TweenService:Create(ClickGuiRoot, TweenInfo.new(0.28, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-                        Position = Toggled and UDim2.fromScale(0.5, 0.5) or UDim2.new(0.5, 0, 0.5, 24),
-                    }):Play()
-                end
-                task.wait(0.28)
-
-                Fading = false
-                if Library.Unloaded then
-                    return
-                end
-
-                MainFrame.Visible = Library.Toggled
-                MainFrame.Parent = ScreenGui
-                if WindowInfo.ClickGui and ClickGuiRoot and ClickGuiScale then
-                    ClickGuiScale.Scale = Library.DPIScale
-                    ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
-                end
-                FadeGroup:Destroy()
-            end)
         else
             MainFrame.Visible = Library.Toggled
         end
