@@ -1728,6 +1728,7 @@ local DeltaIconAliases = {
 local DeltaIconLucideFallback = {
     V = "swords", I = "wind", ["#"] = "eye", L = "user", h = "boxes", g = "zap",
     C = "keyboard", m = "check", u = "x", J = "pipette", B = "bell", G = "search", o = "info", ["%"] = "settings",
+    q = "gauge", P = "wifi", T = "clock", b = "compass", e = "wind",
 }
 
 function Library:GetAsset(AssetName: string): string?
@@ -4011,28 +4012,335 @@ function Library:AddDraggableImageButton(...)
     return DraggableImageButton
 end
 
---// Watermark - Deprecated \\--
+--// Delta Watermark Widget (Widget.java + WatermarkWidget.java 1:1) \\--
 do
-    local WatermarkLabel = Library:AddDraggableLabel("")
-    WatermarkLabel:SetVisible(false)
-
+    local WmOpts = {
+        Split = false,
+        SideAlign = false,
+        Visible = false,
+    }
     local LastWatermarkText = ""
-    local LastWatermarkVisible = false
+    local LastLayoutSig = ""
+    local LastTopSections = {}
+    local LastBottomSections = {}
+    local TopLabels = {}
+    local BottomLabels = {}
+    local UserMoved = false
+    local UpdatingPos = false
+
+    local function GetWmBgColor(): Color3
+        return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 6)
+    end
+
+    local WmRoot = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, 0, 0, 44),
+        Size = UDim2.fromOffset(0, 0),
+        Visible = false,
+        ZIndex = 2,
+        Parent = Floats,
+    })
+    New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Vertical,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = WmRoot,
+    })
+    table.insert(Library.Scales, New("UIScale", { Parent = WmRoot }))
+    if not table.find(Library.DraggableElements, WmRoot) then
+        table.insert(Library.DraggableElements, WmRoot)
+    end
+    Library:MakeDraggable(WmRoot, WmRoot, true)
+    WmRoot:GetPropertyChangedSignal("Position"):Connect(function()
+        if not UpdatingPos then
+            UserMoved = true
+        end
+    end)
+
+    local TopRowHolder = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundTransparency = 1,
+        LayoutOrder = 1,
+        Size = UDim2.fromOffset(0, 25),
+        ZIndex = 2,
+        Parent = WmRoot,
+    })
+    local BottomRowHolder = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.fromOffset(0, 25),
+        Visible = false,
+        ZIndex = 2,
+        Parent = WmRoot,
+    })
+
+    local function ApplyWmPosition()
+        if UserMoved then
+            return
+        end
+        UpdatingPos = true
+        if WmOpts.SideAlign then
+            WmRoot.AnchorPoint = Vector2.new(0, 0)
+            WmRoot.Position = UDim2.fromOffset(10, 52)
+        else
+            WmRoot.AnchorPoint = Vector2.new(0.5, 0)
+            WmRoot.Position = UDim2.new(0.5, 0, 0, 44)
+        end
+        UpdatingPos = false
+    end
+
+    local function BuildLuaLogo(Parent: GuiObject, Order: number)
+        local Wrap = New("Frame", {
+            BackgroundTransparency = 1,
+            LayoutOrder = Order,
+            Size = UDim2.fromOffset(15, 15),
+            ZIndex = 4,
+            Parent = Parent,
+        })
+        -- Orbit ring
+        local Orbit = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(15, 15),
+            ZIndex = 4,
+            Parent = Wrap,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Orbit })
+        New("UIStroke", { Color = "AccentColor", Thickness = 1, Transparency = 0.45, Parent = Orbit })
+        -- Main Lua sphere
+        local Planet = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "AccentColor",
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 1, 1, -1),
+            Size = UDim2.fromOffset(11, 11),
+            ZIndex = 5,
+            Parent = Wrap,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Planet })
+        -- Lunar inner crescent cutout
+        local Cut = New("Frame", {
+            BackgroundColor3 = function()
+                return GetWmBgColor()
+            end,
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(6, 2),
+            Size = UDim2.fromOffset(3, 3),
+            ZIndex = 6,
+            Parent = Planet,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Cut })
+        -- Orbiting moon satellite
+        local Moon = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundColor3 = "AccentColor",
+            BorderSizePixel = 0,
+            Position = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.fromOffset(4, 4),
+            ZIndex = 6,
+            Parent = Wrap,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Moon })
+        return Wrap
+    end
+
+    local function CreateWmPill(Parent: GuiObject, Order: number, PadH: number): Frame
+        local Pill = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = function()
+                return GetWmBgColor()
+            end,
+            BackgroundTransparency = 0.16,
+            LayoutOrder = Order,
+            Size = UDim2.fromOffset(0, 25),
+            ZIndex = 3,
+            Parent = Parent,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 10), Parent = Pill })
+        Library:AddGlowShadow(Pill, 14, function()
+            return GetWmBgColor()
+        end, 0.28)
+        New("UIStroke", { Color = "OutlineColor", Thickness = 1, Transparency = 0.78, Parent = Pill })
+        New("UIPadding", { PaddingLeft = UDim.new(0, PadH), PaddingRight = UDim.new(0, PadH), Parent = Pill })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 7),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = Pill,
+        })
+        return Pill
+    end
+
+    local function PopulateSection(Container: GuiObject, Sec: { Icon: string?, Text: string? }, Order: number, LabelPool: { TextLabel })
+        local Inner = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            LayoutOrder = Order,
+            Size = UDim2.fromScale(0, 1),
+            ZIndex = 4,
+            Parent = Container,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 5),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = Inner,
+        })
+        if Sec.Icon == "lua" then
+            BuildLuaLogo(Inner, 1)
+        elseif Sec.Icon and Sec.Icon ~= "" then
+            local IconObj = Library:GetCustomIcon(Sec.Icon) or Library:GetDeltaIcon(Sec.Icon) or Library:GetIcon(DeltaIconLucideFallback[Sec.Icon] or Sec.Icon)
+            if IconObj then
+                Library:CreateIcon(IconObj, {
+                    ImageColor3 = "AccentColor",
+                    LayoutOrder = 1,
+                    Size = UDim2.fromOffset(13, 13),
+                    ZIndex = 4,
+                    Parent = Inner,
+                })
+            end
+        end
+        if Sec.Text ~= nil and Sec.Text ~= "" then
+            local Lbl = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                LayoutOrder = 2,
+                Size = UDim2.fromScale(0, 1),
+                Text = tostring(Sec.Text),
+                TextColor3 = "FontColor",
+                TextSize = 13,
+                ZIndex = 4,
+                Parent = Inner,
+            })
+            table.insert(LabelPool, Lbl)
+        else
+            local Dummy = { Text = "" }
+            table.insert(LabelPool, Dummy :: any)
+        end
+    end
+
+    local function BuildWmRow(Holder: Frame, Sections: { { Icon: string?, Text: string? } }, LabelPool: { TextLabel })
+        for _, ch in Holder:GetChildren() do
+            ch:Destroy()
+        end
+        table.clear(LabelPool)
+        if not Sections or #Sections == 0 then
+            Holder.Visible = false
+            return
+        end
+        Holder.Visible = true
+
+        if WmOpts.Split then
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = WmOpts.SideAlign and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 5),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = Holder,
+            })
+            for idx, sec in Sections do
+                local Pill = CreateWmPill(Holder, idx, 8)
+                PopulateSection(Pill, sec, 1, LabelPool)
+            end
+        else
+            local Bar = CreateWmPill(Holder, 1, 9)
+            local Order = 0
+            for idx, sec in Sections do
+                if idx > 1 then
+                    Order += 1
+                    New("Frame", {
+                        BackgroundColor3 = Color3.fromRGB(130, 130, 130),
+                        BackgroundTransparency = 0.5,
+                        BorderSizePixel = 0,
+                        LayoutOrder = Order,
+                        Size = UDim2.fromOffset(1, 12),
+                        ZIndex = 4,
+                        Parent = Bar,
+                    })
+                end
+                Order += 1
+                PopulateSection(Bar, sec, Order, LabelPool)
+            end
+        end
+    end
+
+    local function RowSig(Sections: { { Icon: string?, Text: string? } }): string
+        local p = {}
+        for i, s in Sections do
+            p[i] = (s.Icon or "") .. ":" .. ((s.Text and s.Text ~= "") and "1" or "0")
+        end
+        return table.concat(p, "|")
+    end
+
+    function Library:SetDeltaWatermark(TopSections: { { Icon: string?, Text: string? } }, BottomSections: { { Icon: string?, Text: string? } }?)
+        TopSections = TopSections or {}
+        BottomSections = BottomSections or {}
+        LastTopSections = TopSections
+        LastBottomSections = BottomSections
+
+        local Sig = (WmOpts.Split and "S|" or "U|") .. (WmOpts.SideAlign and "L|" or "C|") .. RowSig(TopSections) .. "##" .. RowSig(BottomSections)
+        if Sig ~= LastLayoutSig then
+            LastLayoutSig = Sig
+            local RootLay = WmRoot:FindFirstChildOfClass("UIListLayout")
+            if RootLay then
+                RootLay.HorizontalAlignment = WmOpts.SideAlign and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center
+            end
+            BuildWmRow(TopRowHolder, TopSections, TopLabels)
+            BuildWmRow(BottomRowHolder, BottomSections, BottomLabels)
+            ApplyWmPosition()
+        else
+            for i, s in TopSections do
+                if TopLabels[i] and s.Text ~= nil then
+                    TopLabels[i].Text = tostring(s.Text)
+                end
+            end
+            for i, s in BottomSections do
+                if BottomLabels[i] and s.Text ~= nil then
+                    BottomLabels[i].Text = tostring(s.Text)
+                end
+            end
+        end
+    end
+
+    function Library:SetWatermarkOptions(Opts: { Split: boolean?, SideAlign: boolean? })
+        if typeof(Opts) ~= "table" then return end
+        local ResetPos = false
+        if Opts.Split ~= nil then WmOpts.Split = Opts.Split == true end
+        if Opts.SideAlign ~= nil then
+            if WmOpts.SideAlign ~= (Opts.SideAlign == true) then
+                UserMoved = false
+                ResetPos = true
+            end
+            WmOpts.SideAlign = Opts.SideAlign == true
+        end
+        LastLayoutSig = ""
+        if ResetPos then ApplyWmPosition() end
+        Library:SetDeltaWatermark(LastTopSections, LastBottomSections)
+    end
 
     function Library:SetWatermark(Text: string)
         if Text == LastWatermarkText then
             return
         end
         LastWatermarkText = Text
-        WatermarkLabel:SetText(Text)
+        Library:SetDeltaWatermark({
+            { Icon = "lua", Text = Text },
+        }, {})
     end
 
     function Library:SetWatermarkVisibility(Visible: boolean)
-        if Visible == LastWatermarkVisible then
-            return
-        end
-        LastWatermarkVisible = Visible
-        WatermarkLabel:SetVisible(Visible)
+        WmOpts.Visible = Visible == true
+        WmRoot.Visible = WmOpts.Visible
     end
 end
 
