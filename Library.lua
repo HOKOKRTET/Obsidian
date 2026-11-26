@@ -4178,17 +4178,23 @@ function Library:AddContextMenu(
         Menu.Parent = nil
         Menu.Parent = TargetParent
 
-        if typeof(Offset) == "function" then
+        local function UpdateMenuPosition()
+            local ox, oy
+            if typeof(Offset) == "function" then
+                local o = Offset()
+                ox, oy = o[1], o[2]
+            else
+                ox, oy = Offset[1], Offset[2]
+            end
+            local parentPos = TargetParent and TargetParent.AbsolutePosition or Vector2.zero
+            local scale = Library.DPIScale ~= 0 and Library.DPIScale or 1
             Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-            )
-        else
-            Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset[2])
+                math.round((Holder.AbsolutePosition.X - parentPos.X + ox) / scale),
+                math.round((Holder.AbsolutePosition.Y - parentPos.Y + oy) / scale)
             )
         end
+
+        UpdateMenuPosition()
 
         local TargetSize = typeof(Table.Size) == "function" and Table.Size() or Table.Size
 
@@ -4239,17 +4245,7 @@ function Library:AddContextMenu(
         end
 
         Table.Signal = Holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-            if typeof(Offset) == "function" then
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-                )
-            else
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset[2])
-                )
-            end
+            UpdateMenuPosition()
 
             local HolderAllowed = Table.ParentMenu ~= nil or Library:IsInsideFrame(Library.WindowContainer, Holder)
             if not HolderAllowed then
@@ -9493,10 +9489,10 @@ do
         MenuTable = Library:AddContextMenu(
             DisplayContainer,
             function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), 0)
+                return UDim2.fromOffset(math.round(DisplayContainer.AbsoluteSize.X / Library.DPIScale), 0)
             end,
             function()
-                return { 0.5, DisplayContainer.AbsoluteSize.Y + 1.5 }
+                return { 0, DisplayContainer.AbsoluteSize.Y + 1 }
             end,
             2,
             function(Active: boolean)
@@ -9538,7 +9534,7 @@ do
         local TextWidths = {}
 
         local function GetListWidth()
-            local Width = DisplayContainer.AbsoluteSize.X / Library.DPIScale
+            local Width = math.round(DisplayContainer.AbsoluteSize.X / Library.DPIScale)
             if not Info.AutoWidth then
                 return Width
             end
