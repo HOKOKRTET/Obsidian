@@ -343,6 +343,14 @@ local Library = {
     DescriptionLabel = nil,
     DescriptionTooltipFrame = nil,
     PanelModules = {},
+    UseDeltaCheckboxes = false,
+    UseDeltaChips = true,
+    UseClickGuiBlur = true,
+    UseClickGuiAnim = true,
+    ToggleUpdaters = {},
+    DropdownUpdaters = {},
+    _clickGuiBlur = nil,
+    _syncClickGuiBlur = nil,
 
     --// Registry \\--
     Registry = {},
@@ -2347,6 +2355,31 @@ end
 
 function Library:GetDeltaDisabledTextColor(): Color3
     return Library.Scheme.TextDisabledColor or (Library.IsLightTheme and Color3.fromRGB(160, 174, 192) or Color3.fromRGB(67, 70, 81))
+end
+
+function Library:SetDeltaCheckboxes(Enabled: boolean)
+    Library.UseDeltaCheckboxes = Enabled == true
+    for _, Updater in Library.ToggleUpdaters do
+        pcall(Updater)
+    end
+end
+
+function Library:SetDeltaChips(Enabled: boolean)
+    Library.UseDeltaChips = Enabled == true
+    for _, Updater in Library.DropdownUpdaters do
+        pcall(Updater)
+    end
+end
+
+function Library:SetClickGuiBlur(Enabled: boolean)
+    Library.UseClickGuiBlur = Enabled == true
+    if Library._syncClickGuiBlur then
+        Library._syncClickGuiBlur()
+    end
+end
+
+function Library:SetClickGuiAnim(Enabled: boolean)
+    Library.UseClickGuiAnim = Enabled == true
 end
 
 function Library:AddGlowShadow(Parent: GuiObject, Spread: number?, ColorSource: any?, Transparency: number?)
@@ -8183,9 +8216,13 @@ do
         Toggle.Default = Toggle.Value
 
         Toggles[Idx] = Toggle
+        Library.ToggleUpdaters[Toggle] = function()
+            Toggle:Display()
+        end
 
         function Toggle:Destroy()
             Toggle.Destroyed = true
+            Library.ToggleUpdaters[Toggle] = nil
 
             if Toggle.Connections then
                 for _, Connection in Toggle.Connections do
@@ -8322,12 +8359,59 @@ do
             Parent = Ball,
         })
 
+        local DeltaBox = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = "BackgroundColor",
+            Position = UDim2.fromScale(1, 0.5),
+            Size = UDim2.fromOffset(22, 22),
+            Visible = Library.UseDeltaCheckboxes == true,
+            Parent = Button,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, 6),
+            Parent = DeltaBox,
+        })
+        local DeltaBoxStroke = New("UIStroke", {
+            Color = "OutlineColor",
+            Transparency = 0.35,
+            Parent = DeltaBox,
+        })
+        local DeltaCheckImg = Library:CreateIcon(Library:GetCustomIcon("delta:check"), {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            ImageColor3 = Color3.fromRGB(30, 220, 80),
+            ImageTransparency = 1,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(14, 14),
+            Parent = DeltaBox,
+        })
+        local DeltaCrossImg = Library:CreateIcon(Library:GetCustomIcon("delta:cross"), {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            ImageColor3 = Color3.fromRGB(200, 35, 35),
+            ImageTransparency = 0,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(11, 11),
+            Parent = DeltaBox,
+        })
+
         function Toggle:UpdateColors()
             Toggle:Display()
         end
 
         function Toggle:Display()
             if Library.Unloaded then
+                return
+            end
+
+            local UseBox = Library.UseDeltaCheckboxes == true
+            Switch.Visible = not UseBox
+            DeltaBox.Visible = UseBox
+
+            if UseBox then
+                DeltaBoxStroke.Transparency = Toggle.Disabled and 0.65 or 0.35
+                Label.TextTransparency = Toggle.Disabled and 0.8 or (Toggle.Value and 0 or 0.25)
+                DeltaBox.BackgroundColor3 = Toggle.Disabled and Library.Scheme.BackgroundColor or Library:GetDeltaTintColor(Toggle.Value and 0.14 or 0.08)
+                SetIconProperties(DeltaCheckImg, { ImageTransparency = Toggle.Value and (Toggle.Disabled and 0.7 or 0) or 1 })
+                SetIconProperties(DeltaCrossImg, { ImageTransparency = Toggle.Value and 1 or (Toggle.Disabled and 0.7 or 0) })
                 return
             end
 
@@ -8480,9 +8564,13 @@ do
         Toggle.Default = Toggle.Value
 
         Toggles[Idx] = Toggle
+        Library.ToggleUpdaters[Toggle] = function()
+            Toggle:Display()
+        end
 
         function Toggle:Destroy()
             Toggle.Destroyed = true
+            Library.ToggleUpdaters[Toggle] = nil
 
             if Toggle.Connections then
                 for _, Connection in Toggle.Connections do
@@ -9375,6 +9463,37 @@ do
             Parent = Holder,
         })
 
+        local ChipsFrame = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, Info.Text and 18 or 0),
+            Size = UDim2.new(1, 0, 0, 0),
+            Visible = false,
+            ZIndex = 2,
+            Parent = Holder,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            Padding = UDim.new(0, 5),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
+            Wraps = true,
+            Parent = ChipsFrame,
+        })
+        local ChipButtons = {}
+        local LastChipValuesKey = nil
+        local CanUseChips = function()
+            return Library.UseDeltaChips == true
+                and not Info.Multi
+                and not Info.Searchable
+                and not Info.SpecialType
+                and not Info.ClassicDropdown
+                and IsSequentialArray(Dropdown.Values)
+                and #Dropdown.Values > 0
+                and #Dropdown.Values <= 6
+        end
+
         New("UIPadding", {
             PaddingLeft = UDim.new(0, 8),
             PaddingRight = UDim.new(0, 4),
@@ -9572,6 +9691,74 @@ do
             end)
         end
 
+        local function RefreshChipsState()
+            local ShowChips = CanUseChips()
+            DisplayContainer.Visible = not ShowChips
+            ChipsFrame.Visible = ShowChips
+            ChipsFrame.Position = UDim2.fromOffset(0, Dropdown.Text and 18 or 0)
+            if ShowChips then
+                Holder.AutomaticSize = Enum.AutomaticSize.Y
+                Holder.Size = UDim2.new(1, 0, 0, 0)
+                local KeyParts = {}
+                for idxVal, rawVal in Dropdown.Values do
+                    KeyParts[idxVal] = tostring(rawVal)
+                end
+                local Key = table.concat(KeyParts, "\0")
+                if Key ~= LastChipValuesKey then
+                    LastChipValuesKey = Key
+                    for _, btn in ChipButtons do
+                        pcall(function() btn.Button:Destroy() end)
+                    end
+                    table.clear(ChipButtons)
+                    for idxVal, rawVal in Dropdown.Values do
+                        if not IsDropdownDivider(rawVal) then
+                            local TextStr = tostring(rawVal)
+                            local ChipBtn = New("TextButton", {
+                                AutomaticSize = Enum.AutomaticSize.X,
+                                BackgroundColor3 = "AccentColor",
+                                BackgroundTransparency = 0.96,
+                                LayoutOrder = idxVal,
+                                Size = UDim2.fromOffset(0, 19),
+                                Text = "",
+                                AutoButtonColor = false,
+                                ZIndex = 3,
+                                Parent = ChipsFrame,
+                            })
+                            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ChipBtn })
+                            local ChipStroke = New("UIStroke", { Color = "OutlineColor", Transparency = 0.4, Parent = ChipBtn })
+                            New("UIPadding", { PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7), Parent = ChipBtn })
+                            local ChipLbl = New("TextLabel", {
+                                AutomaticSize = Enum.AutomaticSize.X,
+                                BackgroundTransparency = 1,
+                                Size = UDim2.fromScale(0, 1),
+                                Text = TextStr,
+                                TextColor3 = "FontColor",
+                                TextSize = 12,
+                                ZIndex = 4,
+                                Parent = ChipBtn,
+                            })
+                            ChipBtn.MouseButton1Click:Connect(function()
+                                if Dropdown.Disabled then return end
+                                Dropdown:SetValue(rawVal)
+                            end)
+                            table.insert(ChipButtons, { Value = rawVal, Button = ChipBtn, Stroke = ChipStroke, Label = ChipLbl })
+                        end
+                    end
+                end
+                for _, item in ChipButtons do
+                    local Selected = Dropdown.Value == item.Value
+                    item.Button.BackgroundTransparency = Selected and 0.72 or 0.96
+                    item.Stroke.Transparency = Selected and 0.15 or 0.45
+                    item.Stroke.Color = Selected and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
+                    item.Label.TextTransparency = Dropdown.Disabled and 0.7 or (Selected and 0 or 0.35)
+                end
+            else
+                Holder.AutomaticSize = Enum.AutomaticSize.None
+                Holder.Size = UDim2.new(1, 0, 0, Dropdown.Text and 39 or 21)
+            end
+            Groupbox:Resize()
+        end
+
         function Dropdown:UpdateColors()
             if Library.Unloaded then
                 return
@@ -9581,12 +9768,14 @@ do
             DisplayButton.TextTransparency = Dropdown.Disabled and 0.8 or 0
             SetIconProperties(DisplayImage, { ImageTransparency = Dropdown.Disabled and 0.8 or 0 })
             SetIconProperties(ArrowImage, { ImageTransparency = Dropdown.Disabled and 0.8 or MenuTable.Active and 0 or 0.5 })
+            RefreshChipsState()
         end
 
         function Dropdown:Display()
             if Library.Unloaded then
                 return
             end
+            RefreshChipsState()
 
             local Str = ""
             local ValueImage = nil
@@ -10494,9 +10683,13 @@ do
         Dropdown.DefaultValues = Dropdown.Values
 
         Options[Idx] = Dropdown
+        Library.DropdownUpdaters[Dropdown] = function()
+            RefreshChipsState()
+        end
 
         function Dropdown:Destroy()
             Dropdown.Destroyed = true
+            Library.DropdownUpdaters[Dropdown] = nil
 
             StopDragSelect()
 
@@ -14130,6 +14323,26 @@ function Library:CreateWindow(WindowInfo)
                 ZIndex = 2,
                 Parent = TabContainer,
             })
+
+            local function AddEdgeFade(isBottom: boolean)
+                local Fade = New("Frame", {
+                    AnchorPoint = Vector2.new(0, isBottom and 1 or 0),
+                    BackgroundColor3 = function()
+                        return Library:GetDeltaPanelColor()
+                    end,
+                    BorderSizePixel = 0,
+                    Position = UDim2.fromScale(0, isBottom and 1 or 0),
+                    Size = UDim2.new(1, 0, 0, 10),
+                    ZIndex = 6,
+                    Parent = TabContainer,
+                })
+                local Grad = Instance.new("UIGradient")
+                Grad.Rotation = isBottom and 270 or 90
+                Grad.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 1) })
+                Grad.Parent = Fade
+            end
+            AddEdgeFade(false)
+            AddEdgeFade(true)
             New("UIListLayout", {
                 Padding = UDim.new(0, 8),
                 SortOrder = Enum.SortOrder.LayoutOrder,
@@ -15395,10 +15608,12 @@ function Library:CreateWindow(WindowInfo)
             local ModDesc = Info.Description or Info.Tooltip or ""
             local DefaultVal = Info.Default == true
             local DefaultBind = Info.Keybind or Info.Bind or "None"
+            local NoToggle = Info.NoToggle == true
 
             local Module = {
                 Type = "Toggle",
                 IsModule = true,
+                NoToggle = NoToggle,
                 Idx = Idx,
                 Name = ModName,
                 Text = ModName,
@@ -15533,19 +15748,19 @@ function Library:CreateWindow(WindowInfo)
             })
 
             --// "..." Settings Dots Indicator \\--
-            local SettingsDots = New("TextLabel", {
+            local SettingsDots = New("TextButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, DefaultVal and -42 or -10, 0.5, -2),
-                Size = UDim2.fromOffset(0, 20),
+                Position = UDim2.new(1, (DefaultVal and not NoToggle) and -42 or -10, 0.5, -2),
+                Size = UDim2.fromOffset(22, 24),
                 Text = "...",
                 TextColor3 = function()
                     return Library:GetDeltaDisabledTextColor()
                 end,
                 TextSize = 18,
                 Visible = false,
-                ZIndex = 5,
+                ZIndex = 7,
                 Parent = HeaderBtn,
             })
 
@@ -15641,18 +15856,20 @@ function Library:CreateWindow(WindowInfo)
 
             function Module:Display()
                 if Library.Unloaded or Module.Destroyed then return end
-                local Active = Module.Value == true
+                local Active = (not Module.NoToggle) and (Module.Value == true)
                 local ShowPill = Active
 
                 if Active then
                     TogglePill.Visible = true
+                elseif Module.NoToggle then
+                    TogglePill.Visible = false
                 end
 
                 TweenService:Create(ModuleCard, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    BackgroundTransparency = Active and 0.92 or 1,
+                    BackgroundTransparency = (Active or (Module.NoToggle and Module.Expanded)) and 0.94 or 1,
                 }):Play()
                 TweenService:Create(CardStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Transparency = Active and 0.65 or 1,
+                    Transparency = (Active or (Module.NoToggle and Module.Expanded)) and 0.72 or 1,
                 }):Play()
                 TweenService:Create(SettingsDots, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Position = UDim2.new(1, Active and -42 or -10, 0.5, -2),
@@ -15695,7 +15912,7 @@ function Library:CreateWindow(WindowInfo)
             end
 
             function Module:SetValue(Val: boolean, Silent: boolean?)
-                if Module.Disabled then return end
+                if Module.Disabled or Module.NoToggle then return end
                 local NewState = Val == true
                 if Module.Value == NewState then return end
                 Module.Value = NewState
@@ -15716,6 +15933,9 @@ function Library:CreateWindow(WindowInfo)
 
             function Module:SetExpanded(Expanded: boolean)
                 Module.Expanded = Expanded == true
+                if Module.NoToggle then
+                    Module:Display()
+                end
                 Module:Resize()
             end
 
@@ -15755,9 +15975,22 @@ function Library:CreateWindow(WindowInfo)
                 Library:ClearDescriptionTooltip()
             end))
 
+            table.insert(Module.Connections, SettingsDots.MouseButton1Click:Connect(function()
+                if Module.Disabled then return end
+                if #Module.Elements > 0 then
+                    Module:SetExpanded(not Module.Expanded)
+                end
+            end))
+
             table.insert(Module.Connections, HeaderBtn.InputBegan:Connect(function(Input: InputObject)
                 if Module.Disabled then return end
                 if IsClickInput(Input) then
+                    if Module.NoToggle then
+                        if #Module.Elements > 0 then
+                            Module:SetExpanded(not Module.Expanded)
+                        end
+                        return
+                    end
                     if Input.UserInputType == Enum.UserInputType.Touch and #Module.Elements > 0 then
                         local rightEdge = HeaderBtn.AbsolutePosition.X + HeaderBtn.AbsoluteSize.X
                         if Input.Position.X >= rightEdge - (54 * Library.DPIScale) then
@@ -15770,7 +16003,7 @@ function Library:CreateWindow(WindowInfo)
                     if #Module.Elements > 0 then
                         Module:SetExpanded(not Module.Expanded)
                     end
-                elseif Input.UserInputType == Enum.UserInputType.MouseButton3 then
+                elseif Input.UserInputType == Enum.UserInputType.MouseButton3 and not Module.NoToggle then
                     Module.Listening = not Module.Listening
                     RefreshBindBadge()
                 end
@@ -17516,12 +17749,40 @@ function Library:CreateWindow(WindowInfo)
             Library.Toggled = not Library.Toggled
         end
 
+        local function SyncClickGuiBlur()
+            local WantBlur = Library.Toggled and Library.UseClickGuiBlur == true and WindowInfo.ClickGui
+            local Blur = Library._clickGuiBlur
+            if WantBlur then
+                local okLit, Lighting = pcall(function() return game:GetService("Lighting") end)
+                if okLit and Lighting then
+                    if not Blur or not Blur.Parent then
+                        Blur = Instance.new("BlurEffect")
+                        Blur.Name = RandomGuiName()
+                        Blur.Size = 0
+                        Blur.Enabled = true
+                        Blur.Parent = Lighting
+                        Library._clickGuiBlur = Blur
+                    end
+                    Blur.Enabled = true
+                    TweenService:Create(Blur, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = 10 }):Play()
+                end
+            elseif Blur and Blur.Parent then
+                TweenService:Create(Blur, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = 0 }):Play()
+            end
+        end
+        Library._syncClickGuiBlur = SyncClickGuiBlur
+
         if Library.Animations and Library.Animations.ToggleWindow == true then
             local Toggled = Library.Toggled
             if WindowInfo.ClickGui and ClickGuiRoot then
-                -- Instant 0-lag toggle for ClickGui (no CanvasGroup or UIScale thrash)
                 ClickGuiRoot.Position = UDim2.fromScale(0.5, 0.5)
                 MainFrame.Visible = Toggled
+                SyncClickGuiBlur()
+                if Toggled and Library.UseClickGuiAnim and ClickGuiScale then
+                    local BaseScale = math.max(0.4, Library.DPIScale - (Library.ScalesOffset[ClickGuiScale] or 0))
+                    ClickGuiScale.Scale = BaseScale * 0.94
+                    TweenService:Create(ClickGuiScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = BaseScale }):Play()
+                end
             else
                 Fading = true
 
@@ -17556,6 +17817,7 @@ function Library:CreateWindow(WindowInfo)
             end
         else
             MainFrame.Visible = Library.Toggled
+            SyncClickGuiBlur()
         end
 
         if WindowInfo.UnlockMouseWhileOpen then
@@ -18558,11 +18820,18 @@ function Library:Unload()
         Library.KeybindMenu:Destroy()
     end
 
+    if Library._clickGuiBlur then
+        pcall(function() Library._clickGuiBlur:Destroy() end)
+        Library._clickGuiBlur = nil
+    end
+
     if ScreenGui then
         ScreenGui:Destroy()
     end
 
     --// Clear tables
+    table.clear(Library.ToggleUpdaters)
+    table.clear(Library.DropdownUpdaters)
     table.clear(Library.Registry)
 
     table.clear(Options)
