@@ -1706,6 +1706,9 @@ local DeltaIconGlyphs = {
     ["X"] = { Offset = Vector2.new(76.5, 66.5), Size = Vector2.new(70.0, 44.0) },
     ["Y"] = { Offset = Vector2.new(348.5, 386.5), Size = Vector2.new(60.0, 67.0) },
     ["Z"] = { Offset = Vector2.new(348.5, 192.5), Size = Vector2.new(62.0, 69.0) },
+    ["#"] = { Offset = Vector2.new(478.5, 192.5), Size = Vector2.new(49.0, 49.0) },
+    ["%"] = { Offset = Vector2.new(220.5, 5.5), Size = Vector2.new(57.0, 63.0) },
+    ["h"] = { Offset = Vector2.new(353.5, 70.5), Size = Vector2.new(54.0, 53.0) },
 }
 
 local DeltaIconAliases = {
@@ -1746,6 +1749,10 @@ function Library:GetDeltaIcon(IconName: string): Icon?
     local GlyphKey = if DeltaIconGlyphs[IconName] then IconName else DeltaIconAliases[string.lower(IconName)]
     local Glyph = if GlyphKey then DeltaIconGlyphs[GlyphKey] else nil
     if not Glyph then
+        local FallbackName = DeltaIconLucideFallback[GlyphKey or IconName]
+        if FallbackName then
+            return Library:GetIcon(FallbackName)
+        end
         return nil
     end
 
@@ -4028,6 +4035,23 @@ do
     local TopRowW, BottomRowW = 0, 0
     local UserMoved = false
     local UpdatingPos = false
+    local WmResizeTargets = setmetatable({}, { __mode = "k" })
+    local WmResizeInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    local function ApplyWmSize(Obj: GuiObject, TargetSize: UDim2, Animate: boolean?)
+        if WmResizeTargets[Obj] == TargetSize then
+            if not Animate and Obj.Size ~= TargetSize then
+                Obj.Size = TargetSize
+            end
+            return
+        end
+        WmResizeTargets[Obj] = TargetSize
+        if Animate and WmOpts.Visible then
+            TweenService:Create(Obj, WmResizeInfo, { Size = TargetSize }):Play()
+        else
+            Obj.Size = TargetSize
+        end
+    end
 
     local function GetWmBgColor(): Color3
         return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 6)
@@ -4081,10 +4105,10 @@ do
         Parent = WmRoot,
     })
 
-    local function SyncRootSize()
+    local function SyncRootSize(Animate: boolean?)
         local hasBottom = BottomRowHolder.Visible and BottomRowW > 0
         local maxW = math.max(TopRowW, hasBottom and BottomRowW or 0)
-        WmRoot.Size = UDim2.fromOffset(math.max(25, maxW), hasBottom and 56 or 25)
+        ApplyWmSize(WmRoot, UDim2.fromOffset(math.max(25, maxW), hasBottom and 56 or 25), Animate)
         if WmOpts.SideAlign then
             TopRowHolder.AnchorPoint = Vector2.new(0, 0)
             TopRowHolder.Position = UDim2.fromOffset(0, 0)
@@ -4254,21 +4278,21 @@ do
         }
     end
 
-    local function UpdateWmRowSizes(Holder: Frame, Slots: { any }, isBottom: boolean)
+    local function UpdateWmRowSizes(Holder: Frame, Slots: { any }, isBottom: boolean, Animate: boolean?)
         if #Slots == 0 then
             if isBottom then BottomRowW = 0 else TopRowW = 0 end
-            Holder.Size = UDim2.fromOffset(0, 25)
+            ApplyWmSize(Holder, UDim2.fromOffset(0, 25), Animate)
             return
         end
         local rowW = 0
         if WmOpts.Split then
             for i, slot in Slots do
                 local tw = slot.Label and MeasureWmText(slot.LastText) or 0
-                if slot.Label then slot.Label.Size = UDim2.fromOffset(tw, 25) end
+                if slot.Label then ApplyWmSize(slot.Label, UDim2.fromOffset(tw, 25), Animate) end
                 local sw = (slot.IconW > 0 and tw > 0) and (slot.IconW + 5 + tw) or (slot.IconW + tw)
-                slot.Inner.Size = UDim2.fromOffset(math.max(1, sw), 25)
+                ApplyWmSize(slot.Inner, UDim2.fromOffset(math.max(1, sw), 25), Animate)
                 local pillW = math.max(25, sw + 16)
-                slot.Pill.Size = UDim2.fromOffset(pillW, 25)
+                ApplyWmSize(slot.Pill, UDim2.fromOffset(pillW, 25), Animate)
                 rowW += pillW + ((i > 1) and 5 or 0)
             end
         else
@@ -4276,15 +4300,15 @@ do
             local innerW = 0
             for i, slot in Slots do
                 local tw = slot.Label and MeasureWmText(slot.LastText) or 0
-                if slot.Label then slot.Label.Size = UDim2.fromOffset(tw, 25) end
+                if slot.Label then ApplyWmSize(slot.Label, UDim2.fromOffset(tw, 25), Animate) end
                 local sw = (slot.IconW > 0 and tw > 0) and (slot.IconW + 5 + tw) or (slot.IconW + tw)
-                slot.Inner.Size = UDim2.fromOffset(math.max(1, sw), 25)
+                ApplyWmSize(slot.Inner, UDim2.fromOffset(math.max(1, sw), 25), Animate)
                 innerW += sw + ((i > 1) and (7 + 1 + 7) or 0)
             end
             rowW = math.max(25, innerW + 18)
-            bar.Size = UDim2.fromOffset(rowW, 25)
+            ApplyWmSize(bar, UDim2.fromOffset(rowW, 25), Animate)
         end
-        Holder.Size = UDim2.fromOffset(rowW, 25)
+        ApplyWmSize(Holder, UDim2.fromOffset(rowW, 25), Animate)
         if isBottom then BottomRowW = rowW else TopRowW = rowW end
     end
 
@@ -4337,7 +4361,7 @@ do
                 table.insert(Slots, slot)
             end
         end
-        UpdateWmRowSizes(Holder, Slots, isBottom)
+        UpdateWmRowSizes(Holder, Slots, isBottom, false)
     end
 
     local function RowSig(Sections: { { Icon: string?, Text: string? } }): string
@@ -4359,7 +4383,7 @@ do
             LastLayoutSig = Sig
             BuildWmRow(TopRowHolder, TopSections, TopSlots, false)
             BuildWmRow(BottomRowHolder, BottomSections, BottomSlots, true)
-            SyncRootSize()
+            SyncRootSize(false)
             ApplyWmPosition()
         else
             local changedTop, changedBot = false, false
@@ -4385,9 +4409,9 @@ do
                     end
                 end
             end
-            if changedTop then UpdateWmRowSizes(TopRowHolder, TopSlots, false) end
-            if changedBot then UpdateWmRowSizes(BottomRowHolder, BottomSlots, true) end
-            if changedTop or changedBot then SyncRootSize() end
+            if changedTop then UpdateWmRowSizes(TopRowHolder, TopSlots, false, true) end
+            if changedBot then UpdateWmRowSizes(BottomRowHolder, BottomSlots, true, true) end
+            if changedTop or changedBot then SyncRootSize(true) end
         end
     end
 
@@ -9454,7 +9478,11 @@ do
             Thumb.BackgroundTransparency = Slider.Disabled and 0.6 or 0
         end
 
-        function Slider:Display()
+        local SliderDragging = false
+        local SliderDragTween = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local SliderStepTween = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+        function Slider:Display(Instant: boolean?)
             if Library.Unloaded then
                 return
             end
@@ -9487,10 +9515,18 @@ do
 
             local Denom = Slider.Max - Slider.Min
             local X = if Denom ~= 0 then math.clamp((Slider.Value - Slider.Min) / Denom, 0, 1) else 0
-            Fill.Size = UDim2.fromScale(X, 1)
             local BarW = math.max(12, Bar.AbsoluteSize.X / math.max(0.01, Library.DPIScale))
             local ThumbOffset = math.clamp(X * (BarW - 12) + 6, 6, math.max(6, BarW - 6))
-            Thumb.Position = UDim2.new(0, ThumbOffset, 0.5, 0)
+            local TargetFill = UDim2.fromScale(X, 1)
+            local TargetThumb = UDim2.new(0, ThumbOffset, 0.5, 0)
+            if Instant then
+                Fill.Size = TargetFill
+                Thumb.Position = TargetThumb
+            else
+                local Ti = SliderDragging and SliderDragTween or SliderStepTween
+                TweenService:Create(Fill, Ti, { Size = TargetFill }):Play()
+                TweenService:Create(Thumb, Ti, { Position = TargetThumb }):Play()
+            end
         end
 
         function Slider:OnChanged(Func)
@@ -9657,6 +9693,7 @@ do
                 Library.ActiveLoading.Sidebar.Container.ScrollingEnabled = false
             end
 
+            SliderDragging = true
             while IsDragInput(Input) and not Slider.Destroyed do
                 local Location = Mouse.X
                 local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
@@ -9671,6 +9708,7 @@ do
 
                 RunService.RenderStepped:Wait()
             end
+            SliderDragging = false
 
             if Library.ActiveTab then
                 for _, Side in Library.ActiveTab.Sides do
@@ -9707,7 +9745,7 @@ do
         end
 
         table.insert(Slider.Connections, Bar:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-            Slider:Display()
+            Slider:Display(true)
         end))
 
         table.insert(Slider.Connections, Holder.MouseEnter:Connect(function()
@@ -9725,7 +9763,7 @@ do
         end
 
         Slider:UpdateColors()
-        Slider:Display()
+        Slider:Display(true)
         Groupbox:Resize()
 
         Slider.Holder = Holder
