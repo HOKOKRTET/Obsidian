@@ -541,6 +541,11 @@ function ThemeManager:LoadDefault()
     if not Success or FetchErrorMessage then
         if FetchErrorMessage ~= "Default theme is not set" then
             ThemeManager.Library:Notify(string.format("Failed to apply default theme: %s", FetchErrorMessage))
+        else
+            if ThemeManager.Library.Options.ThemeManager_ThemeList then
+                ThemeManager.Library.Options.ThemeManager_ThemeList:SetValue("Default")
+            end
+            ThemeManager:ApplyTheme("Default")
         end
 
         return
@@ -666,6 +671,10 @@ function ThemeManager:ThemeUpdate()
         if not Element then continue end
 
         Library.Scheme[SchemeIndex] = Element.Value
+    end
+
+    if Library.Scheme.BackgroundColor then
+        Library.IsLightTheme = GetRelativeLuminance(Library.Scheme.BackgroundColor) > 0.5
     end
 
     Library:UpdateColorsUsingRegistry()
@@ -878,6 +887,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
     Themesbox:AddDropdown("ThemeManager_ThemeList", { 
         Text = "Theme list", 
 
+        Default = "Default",
         Values = BuiltInThemesNames,
         AllowNull = true,
         Multi = false,

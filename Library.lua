@@ -398,6 +398,9 @@ else
     end)
 
     Library.IsMobile = (Library.DevicePlatform == Enum.Platform.Android or Library.DevicePlatform == Enum.Platform.IOS)
+    if not Library.IsMobile then
+        Library.IsMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
+    end
     Library.OriginalMinSize = Library.IsMobile and Vector2.new(480, 240) or Vector2.new(480, 360)
 end
 
@@ -2392,6 +2395,19 @@ function Library:GetDarkerColor(Color: Color3): Color3
     return Color3.fromHSV(H, S, V / 2)
 end
 
+function Library:GetEffectiveScale(Inst: Instance?): number
+    local Cur = Inst
+    while Cur do
+        for _, ScaleObj in Library.Scales do
+            if ScaleObj and ScaleObj.Parent == Cur then
+                return math.max(0.01, ScaleObj.Scale)
+            end
+        end
+        Cur = Cur.Parent
+    end
+    return math.max(0.01, Library.DPIScale or 1)
+end
+
 --// Delta ClickGUI Styling & Color Helpers \\--
 function Library:GetDeltaPanelColor(): Color3
     return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 4)
@@ -2776,21 +2792,24 @@ function Library:MakeDraggable(
         end
     end
 
+    local ActiveInput
     InputBegan = DragFrame.InputBegan:Connect(function(Input: InputObject)
         if not IsClickInput(Input) or IsMainWindow and Library.CantDragForced then
             return
         end
 
+        ActiveInput = Input
         StartPos = Input.Position
         FramePos = UI.Position
         Dragging = true
 
         Changed = Input.Changed:Connect(function()
-            if Input.UserInputState ~= Enum.UserInputState.End then
+            if Input.UserInputState ~= Enum.UserInputState.End and Input.UserInputState ~= Enum.UserInputState.Cancel then
                 return
             end
 
             Dragging = false
+            ActiveInput = nil
             HideSnapGuides()
 
             if Changed and Changed.Connected then
@@ -2807,6 +2826,7 @@ function Library:MakeDraggable(
             or not (ScreenGui and ScreenGui.Parent)
         then
             Dragging = false
+            ActiveInput = nil
             HideSnapGuides()
 
             if Changed and Changed.Connected then
@@ -2817,7 +2837,10 @@ function Library:MakeDraggable(
             return
         end
 
-        if Dragging and IsHoverInput(Input) then
+        local MatchesInput = (ActiveInput == nil)
+            or (ActiveInput.UserInputType == Enum.UserInputType.Touch and Input == ActiveInput)
+            or (ActiveInput.UserInputType ~= Enum.UserInputType.Touch and Input.UserInputType == Enum.UserInputType.MouseMovement)
+        if Dragging and MatchesInput and IsHoverInput(Input) then
             local Delta = Input.Position - StartPos
             local NewX = FramePos.X.Offset + Delta.X
             local NewY = FramePos.Y.Offset + Delta.Y
@@ -7166,11 +7189,13 @@ do
             while IsDragInput(Input) and not ColorPicker.Destroyed do
                 local MinX = SatVipMap.AbsolutePosition.X
                 local MaxX = MinX + SatVipMap.AbsoluteSize.X
-                local LocationX = math.clamp(Mouse.X, MinX, MaxX)
+                local RawX = if Input.UserInputType == Enum.UserInputType.Touch then Input.Position.X else Mouse.X
+                local LocationX = math.clamp(RawX, MinX, MaxX)
 
                 local MinY = SatVipMap.AbsolutePosition.Y
                 local MaxY = MinY + SatVipMap.AbsoluteSize.Y
-                local LocationY = math.clamp(Mouse.Y, MinY, MaxY)
+                local RawY = if Input.UserInputType == Enum.UserInputType.Touch then Input.Position.Y else Mouse.Y
+                local LocationY = math.clamp(RawY, MinY, MaxY)
 
                 local OldSat = ColorPicker.Sat
                 local OldVib = ColorPicker.Vib
@@ -7189,7 +7214,8 @@ do
             while IsDragInput(Input) and not ColorPicker.Destroyed do
                 local Min = HueSelector.AbsolutePosition.Y
                 local Max = Min + HueSelector.AbsoluteSize.Y
-                local Location = math.clamp(Mouse.Y, Min, Max)
+                local RawY = if Input.UserInputType == Enum.UserInputType.Touch then Input.Position.Y else Mouse.Y
+                local Location = math.clamp(RawY, Min, Max)
 
                 local OldHue = ColorPicker.Hue
                 ColorPicker.Hue = (Location - Min) / (Max - Min)
@@ -7207,7 +7233,8 @@ do
                 while IsDragInput(Input) and not ColorPicker.Destroyed do
                     local Min = TransparencySelector.AbsolutePosition.Y
                     local Max = TransparencySelector.AbsolutePosition.Y + TransparencySelector.AbsoluteSize.Y
-                    local Location = math.clamp(Mouse.Y, Min, Max)
+                    local RawY = if Input.UserInputType == Enum.UserInputType.Touch then Input.Position.Y else Mouse.Y
+                    local Location = math.clamp(RawY, Min, Max)
 
                     local OldTransparency = ColorPicker.Transparency
                     ColorPicker.Transparency = (Location - Min) / (Max - Min)
@@ -7787,7 +7814,7 @@ do
                 return
             end
 
-            local Width = TextLabel.AbsoluteSize.X / Library.DPIScale
+            local Width = TextLabel.AbsoluteSize.X / Library:GetEffectiveScale(TextLabel)
             if Width <= 0 then return end
 
             local _, Y = Library:GetTextBounds(Label.Text, TextLabel.FontFace, TextLabel.TextSize, Width)
@@ -9465,6 +9492,17 @@ do
             Parent = Bar,
         })
 
+        local BarHitbox = New("TextButton", {
+            Active = not Slider.Disabled,
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0, 0.5),
+            Size = UDim2.new(1, 0, 0, Info.Compact and 18 or 22),
+            Text = "",
+            ZIndex = Bar.ZIndex + 3,
+            Parent = Bar,
+        })
+
         local DisplayLabel = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.X,
             BackgroundTransparency = 1,
@@ -9577,7 +9615,7 @@ do
 
             local Denom = Slider.Max - Slider.Min
             local X = if Denom ~= 0 then math.clamp((Slider.Value - Slider.Min) / Denom, 0, 1) else 0
-            local BarW = math.max(12, Bar.AbsoluteSize.X / math.max(0.01, Library.DPIScale))
+            local BarW = math.max(12, Bar.AbsoluteSize.X / Library:GetEffectiveScale(Bar))
             local ThumbOffset = math.clamp(X * (BarW - 12) + 6, 6, math.max(6, BarW - 6))
             local TargetFill = UDim2.fromScale(X, 1)
             local TargetThumb = UDim2.new(0, ThumbOffset, 0.5, 0)
@@ -9642,6 +9680,7 @@ do
             end
 
             Bar.Active = not Slider.Disabled
+            BarHitbox.Active = not Slider.Disabled
             Slider:UpdateColors()
         end
 
@@ -9713,7 +9752,23 @@ do
         end
 
         local LastTap = 0
-        table.insert(Slider.Connections, Bar.InputBegan:Connect(function(Input: InputObject)
+        local function UpdateSliderFromX(Location: number)
+            local BarWidth = Bar.AbsoluteSize.X
+            if BarWidth <= 0 then
+                return
+            end
+
+            local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / BarWidth, 0, 1)
+            local OldValue = Slider.Value
+            Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Slider.Rounding)
+
+            Slider:Display()
+            if Slider.Value ~= OldValue then
+                Slider:RunChanged()
+            end
+        end
+
+        local function OnSliderInputBegan(Input: InputObject)
             local ValidInput = IsClickInput(Input) or Input.UserInputType == Enum.UserInputType.MouseButton2
             if not ValidInput or Slider.Disabled then
                 return
@@ -9741,47 +9796,70 @@ do
                 end
             end
 
-            if not IsClickInput(Input) then
+            if not IsClickInput(Input) or SliderDragging then
                 return
             end
 
-            if Library.ActiveTab then
-                for _, Side in Library.ActiveTab.Sides do
-                    Side.ScrollingEnabled = false
+            local DisabledScrolls = {}
+            local Anc = Bar.Parent
+            while Anc do
+                if Anc:IsA("ScrollingFrame") and Anc.ScrollingEnabled then
+                    Anc.ScrollingEnabled = false
+                    table.insert(DisabledScrolls, Anc)
                 end
+                Anc = Anc.Parent
             end
 
             if Library.ActiveLoading and Library.ActiveLoading.Sidebar then
                 Library.ActiveLoading.Sidebar.Container.ScrollingEnabled = false
             end
 
+            local IsTouch = Input.UserInputType == Enum.UserInputType.Touch
             SliderDragging = true
-            while IsDragInput(Input) and not Slider.Destroyed do
-                local Location = Mouse.X
-                local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            UpdateSliderFromX(IsTouch and Input.Position.X or Mouse.X)
 
-                local OldValue = Slider.Value
-                Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Slider.Rounding)
-
-                Slider:Display()
-                if Slider.Value ~= OldValue then
-                    Slider:RunChanged()
+            local DragChangedConn = UserInputService.InputChanged:Connect(function(ChangedInput: InputObject)
+                if not SliderDragging or Slider.Destroyed then
+                    return
                 end
+                if IsTouch then
+                    if ChangedInput == Input then
+                        UpdateSliderFromX(ChangedInput.Position.X)
+                    end
+                elseif ChangedInput.UserInputType == Enum.UserInputType.MouseMovement then
+                    UpdateSliderFromX(Mouse.X)
+                end
+            end)
 
+            while
+                SliderDragging
+                and not Slider.Destroyed
+                and not Library.Unloaded
+                and (Input.UserInputState == Enum.UserInputState.Begin or Input.UserInputState == Enum.UserInputState.Change)
+                and Library.IsRobloxFocused
+            do
+                UpdateSliderFromX(IsTouch and Input.Position.X or Mouse.X)
                 RunService.RenderStepped:Wait()
+            end
+
+            if DragChangedConn and DragChangedConn.Connected then
+                DragChangedConn:Disconnect()
             end
             SliderDragging = false
 
-            if Library.ActiveTab then
-                for _, Side in Library.ActiveTab.Sides do
-                    Side.ScrollingEnabled = true
+            for _, Scroll in DisabledScrolls do
+                if Scroll and Scroll.Parent then
+                    Scroll.ScrollingEnabled = true
                 end
             end
 
             if Library.ActiveLoading and Library.ActiveLoading.Sidebar then
                 Library.ActiveLoading.Sidebar.Container.ScrollingEnabled = true
             end
-        end))
+        end
+
+        table.insert(Slider.Connections, Bar.InputBegan:Connect(OnSliderInputBegan))
+        table.insert(Slider.Connections, BarHitbox.InputBegan:Connect(OnSliderInputBegan))
 
         table.insert(Slider.Connections, Holder.InputBegan:Connect(function(Input: InputObject)
             if Slider.Disabled then
@@ -10099,7 +10177,7 @@ do
         MenuTable = Library:AddContextMenu(
             DisplayContainer,
             function()
-                return UDim2.fromOffset(math.round(DisplayContainer.AbsoluteSize.X / Library.DPIScale), 0)
+                return UDim2.fromOffset(math.round(DisplayContainer.AbsoluteSize.X / Library:GetEffectiveScale(DisplayContainer)), 0)
             end,
             function()
                 return { 0, DisplayContainer.AbsoluteSize.Y + 1 }
@@ -10144,7 +10222,7 @@ do
         local TextWidths = {}
 
         local function GetListWidth()
-            local Width = math.round(DisplayContainer.AbsoluteSize.X / Library.DPIScale)
+            local Width = math.round(DisplayContainer.AbsoluteSize.X / Library:GetEffectiveScale(DisplayContainer))
             if not Info.AutoWidth then
                 return Width
             end
@@ -12034,7 +12112,7 @@ do
         }
 
         function Depbox:Resize()
-            DepboxContainer.Size = UDim2.new(1, 0, 0, DepboxList.AbsoluteContentSize.Y / Library.DPIScale)
+            DepboxContainer.Size = UDim2.new(1, 0, 0, DepboxList.AbsoluteContentSize.Y / Library:GetEffectiveScale(DepboxList))
             Groupbox:Resize()
         end
 
@@ -12204,7 +12282,7 @@ do
         }
 
         function DepGroupbox:Resize()
-            DepGroupboxContainer.Size = UDim2.new(1, 0, 0, (DepGroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 18)
+            DepGroupboxContainer.Size = UDim2.new(1, 0, 0, (DepGroupboxList.AbsoluteContentSize.Y / Library:GetEffectiveScale(DepGroupboxList)) + 18)
             if Groupbox.RefreshBoxHolderLayout then
                 Groupbox.RefreshBoxHolderLayout()
             end
@@ -15491,7 +15569,7 @@ function Library:CreateWindow(WindowInfo)
                         return
                     end
 
-                    local ContentSize = (List.AbsoluteContentSize.Y / Library.DPIScale) + 14
+                    local ContentSize = (List.AbsoluteContentSize.Y / Library:GetEffectiveScale(List)) + 14
                     local FrameSize = ContentSize
                     local TabMaxHeight = Tab.MaxHeight or Tabbox.MaxHeight
                     if Tabbox.PoppedOut then
@@ -15696,6 +15774,7 @@ function Library:CreateWindow(WindowInfo)
                 GroupboxHolder = New("Frame", {
                     BackgroundColor3 = if WindowInfo.ClickGui then function() return Library:GetDeltaTintColor(0.05) end else "BackgroundColor",
                     BackgroundTransparency = if WindowInfo.ClickGui then 0.25 else 0,
+                    ClipsDescendants = true,
                     Size = UDim2.fromScale(1, 0),
                     Parent = BoxHolder,
                 })
@@ -15853,8 +15932,9 @@ function Library:CreateWindow(WindowInfo)
             local CollapseArrowTween
 
             local function RefreshBoxHolderLayout()
+                local Scale = Library:GetEffectiveScale(BoxHolderList)
                 BoxHolder.AutomaticSize = Enum.AutomaticSize.None
-                BoxHolder.Size = UDim2.new(1, 0, 0, BoxHolderList.AbsoluteContentSize.Y / Library.DPIScale + 8)
+                BoxHolder.Size = UDim2.new(1, 0, 0, BoxHolderList.AbsoluteContentSize.Y / Scale + 8)
                 BoxHolder.AutomaticSize = Enum.AutomaticSize.Y
             end
             Groupbox.RefreshBoxHolderLayout = RefreshBoxHolderLayout
@@ -15865,8 +15945,9 @@ function Library:CreateWindow(WindowInfo)
                     ResizeTween = nil
                 end
 
-                local TopSize = (GroupboxTop.AbsoluteSize.Y / Library.DPIScale)
-                local ContentSize = (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 14
+                local Scale = Library:GetEffectiveScale(GroupboxList)
+                local TopSize = (GroupboxTop.AbsoluteSize.Y / Scale)
+                local ContentSize = (GroupboxList.AbsoluteContentSize.Y / Scale) + 14
                 local ContainerSize = ContentSize
                 if Groupbox.PoppedOut then
                     ContainerSize = math.min(ContainerSize, GetPopOutBodyMaxHeight(Groupbox, TopSize + 1))
@@ -16335,8 +16416,8 @@ function Library:CreateWindow(WindowInfo)
                     ResizeTween = nil
                 end
 
-                local ContentH = SettingsList.AbsoluteContentSize.Y / math.max(0.01, Library.DPIScale)
-                local TargetH = if Module.Expanded and HasSettings then (32 + ContentH + 10) else 32
+                local ContentH = SettingsList.AbsoluteContentSize.Y / Library:GetEffectiveScale(SettingsList)
+                local TargetH = if Module.Expanded and HasSettings then (32 + ContentH + 12) else 32
                 local TargetSize = UDim2.new(1, 0, 0, TargetH)
 
                 if Library.Animations and Library.Animations.Groupbox then
@@ -18386,8 +18467,15 @@ function Library:CreateWindow(WindowInfo)
             MainFrame.Visible = Library.Toggled
         end
 
-        if WindowInfo.UnlockMouseWhileOpen then
+        if WindowInfo.UnlockMouseWhileOpen and not Library.IsMobile then
             ModalElement.Modal = Library.Toggled
+        else
+            ModalElement.Modal = false
+            if Library.IsMobile then
+                pcall(function()
+                    UserInputService.ModalEnabled = false
+                end)
+            end
         end
 
         if Library.Toggled and not Library.IsMobile then
@@ -19389,6 +19477,10 @@ function Library:Unload()
     if Library._clickGuiBlur then
         pcall(function() Library._clickGuiBlur:Destroy() end)
         Library._clickGuiBlur = nil
+    end
+
+    if ModalElement then
+        ModalElement.Modal = false
     end
 
     if ScreenGui then
