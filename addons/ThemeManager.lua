@@ -69,9 +69,9 @@ local ThemeManager = {
             3,
             { FontColor = "111216", MainColor = "f0f2f5", AccentColor = "859cff", BackgroundColor = "fdfeff", OutlineColor = "dfe3ea", BackgroundImage = "" },
         },
-        ["Nursultan"] = {
+        ["Modern"] = {
             4,
-            { FontColor = "eef1ff", MainColor = "10131e", AccentColor = "7a68ff", BackgroundColor = "090b12", OutlineColor = "252a40", BackgroundImage = "" },
+            { FontColor = "f0eff7", MainColor = "181521", AccentColor = "8b7be8", BackgroundColor = "110f17", OutlineColor = "322d44", BackgroundImage = "" },
         },
         ["BBot"] = {
             5,
