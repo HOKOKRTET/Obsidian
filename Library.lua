@@ -2726,6 +2726,9 @@ end
 function Library:SetModernStyle(Enabled: boolean)
     Library.ModernStyle = Enabled == true
     Library:RefreshModernStyle()
+    if Library.SetWatermarkOptions then
+        Library:SetWatermarkOptions({ Modern = Library.ModernStyle })
+    end
 end
 
 function Library:AddGlowShadow(Parent: GuiObject, Spread: number?, ColorSource: any?, Transparency: number?)
@@ -4370,6 +4373,16 @@ do
         Split = false,
         SideAlign = false,
         Visible = false,
+        Modern = Library.ModernStyle == true,
+    }
+    local WmModernIconMap = {
+        ["lua"] = "modern:logo",
+        ["delta:player"] = "modern:player",
+        ["q"] = "modern:fps",
+        ["P"] = "modern:ping",
+        ["T"] = "modern:clock",
+        ["b"] = "modern:compass",
+        ["e"] = "modern:movement",
     }
     local LastWatermarkText = ""
     local LastLayoutSig = ""
@@ -4399,6 +4412,9 @@ do
     end
 
     local function GetWmBgColor(): Color3
+        if WmOpts.Modern then
+            return Color3.fromRGB(13, 15, 24):Lerp(Library.Scheme.AccentColor, 0.045)
+        end
         return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 6)
     end
 
@@ -4535,21 +4551,45 @@ do
     end
 
     local function CreateWmPill(Parent: GuiObject, Order: number, PadH: number): (Frame, Frame)
+        local isMod = WmOpts.Modern == true
+        local acc = Library.Scheme.AccentColor
+        local sec = Color3.new(math.min(1, acc.R * 0.72 + 0.16), math.min(1, acc.G * 0.85 + 0.12), math.min(1, acc.B + 0.2))
         local Pill = New("Frame", {
             BackgroundColor3 = function()
                 return GetWmBgColor()
             end,
-            BackgroundTransparency = 0.16,
+            BackgroundTransparency = isMod and 0.14 or 0.16,
+            ClipsDescendants = isMod,
             LayoutOrder = Order,
             Size = UDim2.fromOffset(25, 25),
             ZIndex = 3,
             Parent = Parent,
         })
-        New("UICorner", { CornerRadius = UDim.new(0, 10), Parent = Pill })
+        New("UICorner", { CornerRadius = UDim.new(0, isMod and 8 or 10), Parent = Pill })
         Library:AddGlowShadow(Pill, 14, function()
             return GetWmBgColor()
         end, 0.28)
-        New("UIStroke", { Color = "OutlineColor", Thickness = 1, Transparency = 0.78, Parent = Pill })
+        New("UIStroke", {
+            Color = isMod and function() return Library.Scheme.AccentColor:Lerp(Library.Scheme.OutlineColor, 0.5) end or "OutlineColor",
+            Thickness = 1,
+            Transparency = isMod and 0.35 or 0.78,
+            Parent = Pill,
+        })
+        if isMod then
+            local TopBar = New("Frame", {
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 0, 2),
+                ZIndex = 5,
+                Parent = Pill,
+            })
+            local TopGrad = Instance.new("UIGradient")
+            TopGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, acc),
+                ColorSequenceKeypoint.new(1, sec),
+            })
+            TopGrad.Parent = TopBar
+        end
         local Content = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
@@ -4585,7 +4625,23 @@ do
             Parent = Inner,
         })
         local iconW = 0
-        if Sec.Icon == "lua" then
+        if WmOpts.Modern and Sec.Icon and Sec.Icon ~= "" then
+            local modKey = WmModernIconMap[Sec.Icon] or Sec.Icon
+            local modObj = Library:GetModernIcon(modKey) or Library:GetCustomIcon(Sec.Icon) or Library:GetDeltaIcon(Sec.Icon) or Library:GetIcon(DeltaIconLucideFallback[Sec.Icon] or Sec.Icon)
+            if modObj then
+                Library:CreateIcon(modObj, {
+                    ImageColor3 = "AccentColor",
+                    LayoutOrder = 1,
+                    Size = UDim2.fromOffset(Sec.Icon == "lua" and 14 or 13, Sec.Icon == "lua" and 14 or 13),
+                    ZIndex = 4,
+                    Parent = Inner,
+                })
+                iconW = Sec.Icon == "lua" and 14 or 13
+            elseif Sec.Icon == "lua" then
+                BuildLuaLogo(Inner, 1)
+                iconW = 15
+            end
+        elseif Sec.Icon == "lua" then
             BuildLuaLogo(Inner, 1)
             iconW = 15
         elseif Sec.Icon and Sec.Icon ~= "" then
@@ -4729,7 +4785,7 @@ do
         LastTopSections = TopSections
         LastBottomSections = BottomSections
 
-        local Sig = (WmOpts.Split and "S|" or "U|") .. (WmOpts.SideAlign and "L|" or "C|") .. RowSig(TopSections) .. "##" .. RowSig(BottomSections)
+        local Sig = (WmOpts.Modern and "M|" or "D|") .. (WmOpts.Split and "S|" or "U|") .. (WmOpts.SideAlign and "L|" or "C|") .. RowSig(TopSections) .. "##" .. RowSig(BottomSections)
         if Sig ~= LastLayoutSig then
             LastLayoutSig = Sig
             BuildWmRow(TopRowHolder, TopSections, TopSlots, false)
@@ -4766,10 +4822,11 @@ do
         end
     end
 
-    function Library:SetWatermarkOptions(Opts: { Split: boolean?, SideAlign: boolean? })
+    function Library:SetWatermarkOptions(Opts: { Split: boolean?, SideAlign: boolean?, Modern: boolean? })
         if typeof(Opts) ~= "table" then return end
         local ResetPos = false
         if Opts.Split ~= nil then WmOpts.Split = Opts.Split == true end
+        if Opts.Modern ~= nil then WmOpts.Modern = Opts.Modern == true end
         if Opts.SideAlign ~= nil then
             if WmOpts.SideAlign ~= (Opts.SideAlign == true) then
                 UserMoved = false
