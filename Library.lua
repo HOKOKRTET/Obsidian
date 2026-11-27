@@ -1685,6 +1685,9 @@ function Library:UpdateColorsUsingRegistry()
     if Library.RefreshModernStyle then
         Library:RefreshModernStyle()
     end
+    if Library.RefreshArrayListTheme then
+        Library:RefreshArrayListTheme()
+    end
 end
 
 function Library:SetDPIScale(DPIScale: number)
@@ -4854,6 +4857,240 @@ do
     function Library:SetWatermarkVisibility(Visible: boolean)
         WmOpts.Visible = Visible == true
         WmRoot.Visible = WmOpts.Visible
+    end
+end
+
+--// Theme-Adaptive ArrayList Widget \\--
+do
+    local ArrayVisible = false
+    local ArrayStyle = "Modern"
+    local ArrayEntries = {}
+    local ArrayRows = {}
+    local ArraySig = ""
+
+    local ArrayRoot = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundTransparency = 1,
+        Name = RandomGuiName(),
+        Position = UDim2.new(1, -12, 0, 12),
+        Size = UDim2.fromOffset(180, 0),
+        Visible = false,
+        ZIndex = 2,
+        Parent = Floats,
+    })
+    table.insert(Library.Scales, New("UIScale", { Parent = ArrayRoot }))
+    if not table.find(Library.DraggableElements, ArrayRoot) then
+        table.insert(Library.DraggableElements, ArrayRoot)
+    end
+    Library:MakeDraggable(ArrayRoot, ArrayRoot, true)
+
+    local ArrayLayout = New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Vertical,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = ArrayRoot,
+    })
+
+    local function MeasureArrayText(str: string, sz: number): number
+        if str == "" then return 0 end
+        local fnt = Library.Scheme and Library.Scheme.Font
+        if fnt then
+            local ok, bounds = pcall(function()
+                local p = Instance.new("GetTextBoundsParams")
+                p.Text = str
+                p.RichText = false
+                p.Font = fnt
+                p.Size = sz
+                p.Width = 2000
+                return TextService:GetTextBoundsAsync(p)
+            end)
+            if ok and bounds then
+                return math.ceil(bounds.X) + 1
+            end
+        end
+        return #str * 7 + 4
+    end
+
+    local function RenderArrayList()
+        if not ArrayVisible then
+            ArrayRoot.Visible = false
+            return
+        end
+        ArrayRoot.Visible = #ArrayEntries > 0
+        local st = ArrayStyle
+        local scheme = Library.Scheme or {}
+        local acc = scheme.AccentColor or Color3.fromRGB(133, 156, 255)
+        local bgCol = if st == "Modern"
+            then Library:GetModernPanelColor()
+            elseif st == "Cards" then Library:GetDeltaPanelColor()
+            else (scheme.MainColor or Color3.fromRGB(16, 18, 28))
+        local bgTrans = if st == "Classic" then 0.08 elseif st == "Cards" then 0.18 else 0.2
+        local radius = if st == "Classic" then 3 elseif st == "Cards" then 6 else 5
+        local strokeCol = if st == "Modern"
+            then Color3.fromRGB(64, 58, 82):Lerp(acc, 0.2)
+            else (scheme.OutlineColor or Color3.fromRGB(48, 52, 68))
+        local strokeTrans = if st == "Classic" then 0.25 else 0.56
+        local fontCol = scheme.FontColor or Color3.fromRGB(240, 239, 247)
+        local tagCol = fontCol:Lerp(bgCol, 0.44)
+        local secAcc = Color3.new(math.min(1, acc.R * 0.72 + 0.16), math.min(1, acc.G * 0.85 + 0.12), math.min(1, acc.B + 0.2))
+
+        ArrayLayout.Padding = UDim.new(0, st == "Classic" and 1 or 2)
+
+        local measured = {}
+        local maxW = 60
+        for i, item in ArrayEntries do
+            local nm = tostring(item.Name or "")
+            local tg = (item.Tag and item.Tag ~= "") and tostring(item.Tag) or ""
+            local nw = MeasureArrayText(nm, 12)
+            local tw = tg ~= "" and MeasureArrayText(tg, 11) or 0
+            local innerGap = (tw > 0) and 5 or 0
+            local rowW = 8 + nw + innerGap + tw + 11
+            if rowW > maxW then maxW = rowW end
+            measured[i] = { Name = nm, Tag = tg, NW = nw, TW = tw, W = rowW }
+        end
+
+        table.sort(measured, function(a, b)
+            if a.W ~= b.W then return a.W > b.W end
+            return a.Name < b.Name
+        end)
+
+        ArrayRoot.Size = UDim2.fromOffset(maxW, math.max(21, #measured * 23))
+
+        for i, m in measured do
+            local row = ArrayRows[i]
+            if not row then
+                local pill = New("Frame", {
+                    BackgroundColor3 = bgCol,
+                    BackgroundTransparency = bgTrans,
+                    BorderSizePixel = 0,
+                    LayoutOrder = i,
+                    Size = UDim2.fromOffset(m.W, 21),
+                    ZIndex = 3,
+                    Parent = ArrayRoot,
+                })
+                local corner = New("UICorner", { CornerRadius = UDim.new(0, radius), Parent = pill })
+                local stroke = New("UIStroke", { Color = strokeCol, Thickness = 1, Transparency = strokeTrans, Parent = pill })
+                local bar = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    BackgroundColor3 = acc,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(1, 0, 0.5, 0),
+                    Size = UDim2.fromOffset(2, 21),
+                    ZIndex = 5,
+                    Parent = pill,
+                })
+                local barCorner = New("UICorner", { CornerRadius = UDim.new(0, 0), Parent = bar })
+                local nameLbl = New("TextLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
+                    FontFace = scheme.Font,
+                    Position = UDim2.new(0, 8, 0.5, 0),
+                    Size = UDim2.fromOffset(m.NW, 21),
+                    Text = m.Name,
+                    TextColor3 = fontCol,
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Center,
+                    ZIndex = 4,
+                    Parent = pill,
+                })
+                local tagLbl = New("TextLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
+                    FontFace = scheme.Font,
+                    Position = UDim2.new(0, 8 + m.NW + 5, 0.5, 0),
+                    Size = UDim2.fromOffset(m.TW, 21),
+                    Text = m.Tag,
+                    TextColor3 = tagCol,
+                    TextSize = 11,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Center,
+                    Visible = m.TW > 0,
+                    ZIndex = 4,
+                    Parent = pill,
+                })
+                row = { Pill = pill, Corner = corner, Stroke = stroke, Bar = bar, BarCorner = barCorner, Name = nameLbl, Tag = tagLbl }
+                ArrayRows[i] = row
+            end
+
+            local frac = (i - 1) / math.max(1, #measured - 1)
+            local barCol = acc:Lerp(secAcc, frac)
+
+            row.Pill.Visible = true
+            row.Pill.LayoutOrder = i
+            row.Pill.Size = UDim2.fromOffset(m.W, 21)
+            row.Pill.BackgroundColor3 = bgCol
+            row.Pill.BackgroundTransparency = bgTrans
+            row.Corner.CornerRadius = UDim.new(0, radius)
+            row.Stroke.Color = strokeCol
+            row.Stroke.Transparency = strokeTrans
+
+            row.Bar.BackgroundColor3 = barCol
+            if st == "Classic" then
+                row.Bar.Position = UDim2.new(1, 0, 0.5, 0)
+                row.Bar.Size = UDim2.fromOffset(2, 21)
+                row.BarCorner.CornerRadius = UDim.new(0, 0)
+            else
+                row.Bar.Position = UDim2.new(1, -3, 0.5, 0)
+                row.Bar.Size = UDim2.fromOffset(2, 13)
+                row.BarCorner.CornerRadius = UDim.new(1, 0)
+            end
+
+            if scheme.Font then
+                row.Name.FontFace = scheme.Font
+                row.Tag.FontFace = scheme.Font
+            end
+            row.Name.Text = m.Name
+            row.Name.TextColor3 = fontCol
+            row.Name.Position = UDim2.new(0, 8, 0.5, 0)
+            row.Name.Size = UDim2.fromOffset(m.NW, 21)
+
+            row.Tag.Visible = m.TW > 0
+            row.Tag.Text = m.Tag
+            row.Tag.TextColor3 = tagCol
+            row.Tag.Position = UDim2.new(0, 8 + m.NW + 5, 0.5, 0)
+            row.Tag.Size = UDim2.fromOffset(m.TW, 21)
+        end
+
+        for i = #measured + 1, #ArrayRows do
+            ArrayRows[i].Pill.Visible = false
+        end
+    end
+
+    function Library:SetArrayListVisibility(Visible: boolean)
+        ArrayVisible = Visible == true
+        RenderArrayList()
+    end
+
+    function Library:SetArrayListStyle(Style: string)
+        if Style == "Classic" or Style == "Cards" or Style == "Modern" then
+            ArrayStyle = Style
+            ArraySig = ""
+            RenderArrayList()
+        end
+    end
+
+    function Library:RefreshArrayListTheme()
+        ArraySig = ""
+        if ArrayVisible then
+            RenderArrayList()
+        end
+    end
+
+    function Library:SetArrayListEntries(Entries: { { Name: string, Tag: string? } })
+        Entries = Entries or {}
+        local parts = table.create(#Entries)
+        for i, e in Entries do
+            parts[i] = tostring(e.Name or "") .. ":" .. tostring(e.Tag or "")
+        end
+        local sig = table.concat(parts, "|")
+        if sig == ArraySig and ArrayVisible then
+            return
+        end
+        ArraySig = sig
+        ArrayEntries = Entries
+        RenderArrayList()
     end
 end
 
