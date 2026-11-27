@@ -1908,7 +1908,7 @@ function Library:PlayCustomSound(AssetName: string?, Volume: number?)
             local S = New("Sound", {
                 SoundId = SoundUrl,
                 Volume = Volume or 0.5,
-                Parent = SoundService,
+                Parent = Library.ScreenGui or SoundService,
             })
             S:Play()
             local cleaned = false
@@ -2202,22 +2202,30 @@ end
 
 --// Main Instances \\-
 local function SafeParentUI(Instance: Instance, Parent: Instance | () -> Instance)
+    local DestinationParent
+    if typeof(Parent) == "function" then
+        local okGet, res = pcall(Parent)
+        DestinationParent = okGet and res or CoreGui
+    else
+        DestinationParent = Parent or CoreGui
+    end
+
+    if DestinationParent == CoreGui then
+        pcall(protectgui, Instance)
+    end
+
     local success, _error = pcall(function()
-        if not Parent then
-            Parent = CoreGui
-        end
-
-        local DestinationParent
-        if typeof(Parent) == "function" then
-            DestinationParent = Parent()
-        else
-            DestinationParent = Parent
-        end
-
         Instance.Parent = DestinationParent
     end)
 
-    if not (success and Instance.Parent) then
+    if not (success and Instance.Parent) and DestinationParent ~= CoreGui then
+        pcall(protectgui, Instance)
+        pcall(function()
+            Instance.Parent = CoreGui
+        end)
+    end
+
+    if not Instance.Parent then
         Instance.Parent = Library.LocalPlayer:WaitForChild("PlayerGui", math.huge)
     end
 end
@@ -2225,6 +2233,12 @@ end
 local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
     if SkipHiddenUI then
         SafeParentUI(UI, CoreGui)
+        return
+    end
+
+    local okHui, hui = pcall(gethui)
+    if okHui and hui and hui ~= CoreGui then
+        SafeParentUI(UI, hui)
         return
     end
 
@@ -13820,7 +13834,7 @@ function Library:Notify(...)
                 local S = New("Sound", {
                     SoundId = SoundId,
                     Volume = Data.SoundId and (tonumber(Data.Volume) or 3) or 0.55,
-                    Parent = SoundService,
+                    Parent = Library.ScreenGui or SoundService,
                 })
                 S:Play()
                 local cleaned = false
@@ -18887,23 +18901,32 @@ function Library:CreateWindow(WindowInfo)
 
         local function SyncClickGuiBlur()
             local WantBlur = Library.Toggled and Library.UseClickGuiBlur == true
-            local Blur = Library._clickGuiBlur
+            local Backdrop = Library._clickGuiBlur
             if WantBlur then
-                local okLit, Lighting = pcall(function() return game:GetService("Lighting") end)
-                if okLit and Lighting then
-                    if not Blur or not Blur.Parent then
-                        Blur = Instance.new("BlurEffect")
-                        Blur.Name = RandomGuiName()
-                        Blur.Size = 0
-                        Blur.Enabled = true
-                        Blur.Parent = Lighting
-                        Library._clickGuiBlur = Blur
-                    end
-                    Blur.Enabled = true
-                    TweenService:Create(Blur, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = 10 }):Play()
+                if not Backdrop or not Backdrop.Parent then
+                    Backdrop = New("Frame", {
+                        Name = RandomGuiName(),
+                        Active = false,
+                        BackgroundColor3 = Color3.new(0, 0, 0),
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        Position = UDim2.fromScale(0, 0),
+                        Size = UDim2.fromScale(1, 1),
+                        ZIndex = 0,
+                        Parent = ScreenGui,
+                    })
+                    Library._clickGuiBlur = Backdrop
                 end
-            elseif Blur and Blur.Parent then
-                TweenService:Create(Blur, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = 0 }):Play()
+                Backdrop.Visible = true
+                TweenService:Create(Backdrop, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.55 }):Play()
+            elseif Backdrop and Backdrop.Parent then
+                local tw = TweenService:Create(Backdrop, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
+                tw:Play()
+                tw.Completed:Once(function()
+                    if not (Library.Toggled and Library.UseClickGuiBlur) and Backdrop and Backdrop.Parent then
+                        Backdrop.Visible = false
+                    end
+                end)
             end
         end
         Library._syncClickGuiBlur = SyncClickGuiBlur
