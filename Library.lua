@@ -122,7 +122,7 @@ local CustomImageManagerAssets = {
 
     ModernIcons = {
         RobloxId = 0,
-        Path = "Obsidian/assets/modern/icons.png",
+        Path = "Obsidian/assets/modern/icons_v3.png",
         URL = BaseURL .. "assets/modern/icons.png",
 
         Id = nil,
@@ -1877,6 +1877,11 @@ local ModernIconFallback = {
     ["modern:player"] = "user",
     ["modern:settings"] = "settings",
     ["modern:logo"] = "sparkles",
+    ["modern:meteor"] = "sparkles",
+    ["modern:fps"] = "gauge",
+    ["modern:ping"] = "wifi",
+    ["modern:clock"] = "clock",
+    ["modern:compass"] = "compass",
 }
 
 function Library:GetAsset(AssetName: string): string?
@@ -4268,7 +4273,7 @@ do
         Modern = false,
     }
     local WmModernIconMap = {
-        ["lua"] = "modern:logo",
+        ["lua"] = "modern:meteor",
         ["delta:player"] = "modern:player",
         ["q"] = "modern:fps",
         ["P"] = "modern:ping",
@@ -4328,7 +4333,7 @@ do
 
     local function GetWmBgColor(): Color3
         if WmOpts.Modern then
-            return Color3.fromRGB(22, 19, 31):Lerp(Library.Scheme.AccentColor, 0.08)
+            return Library.Scheme.MainColor:Lerp(Library.Scheme.BackgroundColor, 0.35):Lerp(Library.Scheme.AccentColor, 0.08)
         end
         return Library.Scheme.BackgroundColor:Lerp(Library.Scheme.AccentColor, (75 / 255) / 6)
     end
@@ -4489,9 +4494,9 @@ do
             return GetWmBgColor()
         end, isMod and 0.36 or 0.28)
         New("UIStroke", {
-            Color = isMod and function() return Color3.fromRGB(64, 58, 82):Lerp(Library.Scheme.AccentColor, 0.2) end or "OutlineColor",
+            Color = isMod and function() return Library.Scheme.OutlineColor:Lerp(Library.Scheme.AccentColor, 0.22) end or "OutlineColor",
             Thickness = 1,
-            Transparency = isMod and 0.56 or 0.78,
+            Transparency = isMod and 0.52 or 0.78,
             Parent = Pill,
         })
         local Content = New("Frame", {
@@ -4532,26 +4537,26 @@ do
         })
         local iconW = 0
         if isMod and Sec.Icon and Sec.Icon ~= "" then
-            if Sec.Icon == "lua" then
+            local modKey = WmModernIconMap[Sec.Icon] or Sec.Icon
+            local aliasKey = DeltaIconAliases[string.lower(Sec.Icon)] or Sec.Icon
+            local lucideName = DeltaIconLucideFallback[aliasKey] or DeltaIconLucideFallback[Sec.Icon] or Sec.Icon
+            local modObj = Library:GetModernIcon(modKey) or Library:GetIcon(lucideName) or Library:GetCustomIcon(Sec.Icon) or Library:GetDeltaIcon(Sec.Icon)
+            if modObj then
+                local icSz = (Sec.Icon == "lua") and 14 or 13
+                local icCol = (Sec.Icon == "lua") and "AccentColor" or function()
+                    return Library.Scheme.FontColor:Lerp(Library.Scheme.AccentColor, 0.42)
+                end
+                Library:CreateIcon(modObj, {
+                    ImageColor3 = icCol,
+                    LayoutOrder = 1,
+                    Size = UDim2.fromOffset(icSz, icSz),
+                    ZIndex = 4,
+                    Parent = Inner,
+                })
+                iconW = icSz
+            elseif Sec.Icon == "lua" then
                 BuildLuaLogo(Inner, 1)
                 iconW = 15
-            else
-                local aliasKey = DeltaIconAliases[string.lower(Sec.Icon)] or Sec.Icon
-                local lucideName = DeltaIconLucideFallback[aliasKey] or DeltaIconLucideFallback[Sec.Icon] or Sec.Icon
-                local modObj = Library:GetIcon(lucideName) or Library:GetCustomIcon(Sec.Icon) or Library:GetDeltaIcon(Sec.Icon) or Library:GetModernIcon(WmModernIconMap[Sec.Icon] or Sec.Icon)
-                if modObj then
-                    local icSz = 12
-                    Library:CreateIcon(modObj, {
-                        ImageColor3 = function()
-                            return Color3.fromRGB(228, 227, 244):Lerp(Library.Scheme.AccentColor, 0.28)
-                        end,
-                        LayoutOrder = 1,
-                        Size = UDim2.fromOffset(icSz, icSz),
-                        ZIndex = 4,
-                        Parent = Inner,
-                    })
-                    iconW = icSz
-                end
             end
         elseif Sec.Icon == "lua" then
             BuildLuaLogo(Inner, 1)
@@ -4579,7 +4584,7 @@ do
                 LayoutOrder = 2,
                 Size = UDim2.fromOffset(textW, rh),
                 Text = textStr,
-                TextColor3 = isMod and Color3.fromRGB(238, 237, 246) or "FontColor",
+                TextColor3 = "FontColor",
                 TextSize = isMod and 12 or 13,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 4,
@@ -4646,6 +4651,7 @@ do
         end
         for _, ch in Holder:GetChildren() do
             Library:RemoveFromRegistry(ch)
+            ch.Parent = nil
             ch:Destroy()
         end
         table.clear(Slots)
@@ -4712,7 +4718,7 @@ do
         LastBottomSections = BottomSections
 
         local Sig = (WmOpts.Modern and "M|" or "D|") .. (IsWmSplit() and "S|" or "U|") .. (IsWmLeft() and "L|" or "C|") .. RowSig(TopSections) .. "##" .. RowSig(BottomSections)
-        if Sig ~= LastLayoutSig then
+        if Sig ~= LastLayoutSig or #TopSlots ~= #TopSections or #BottomSlots ~= #BottomSections then
             LastLayoutSig = Sig
             BuildWmRow(TopRowHolder, TopSections, TopSlots, false)
             BuildWmRow(BottomRowHolder, BottomSections, BottomSlots, true)
