@@ -119,6 +119,62 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
+
+    ModernIcons = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/icons.png",
+        URL = BaseURL .. "assets/modern/icons.png",
+
+        Id = nil,
+    },
+
+    ModernHeart = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/heart.png",
+        URL = BaseURL .. "assets/modern/heart.png",
+
+        Id = nil,
+    },
+
+    ModernSnowflake = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/snowflake.png",
+        URL = BaseURL .. "assets/modern/snowflake.png",
+
+        Id = nil,
+    },
+
+    ModernDollar = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/dollar.png",
+        URL = BaseURL .. "assets/modern/dollar.png",
+
+        Id = nil,
+    },
+
+    ModernStar = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/star.png",
+        URL = BaseURL .. "assets/modern/star.png",
+
+        Id = nil,
+    },
+
+    ModernGlow = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/glow.png",
+        URL = BaseURL .. "assets/modern/glow.png",
+
+        Id = nil,
+    },
+
+    ModernTarget = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/modern/target.png",
+        URL = BaseURL .. "assets/modern/target.png",
+
+        Id = nil,
+    },
 }
 do
     local function RecursiveCreatePath(Path: string, IsFile: boolean?)
@@ -1626,6 +1682,9 @@ function Library:UpdateColorsUsingRegistry()
             end
         end
     end
+    if Library.RefreshModernStyle then
+        Library:RefreshModernStyle()
+    end
 end
 
 function Library:SetDPIScale(DPIScale: number)
@@ -1753,6 +1812,59 @@ local DeltaIconLucideFallback = {
     q = "gauge", P = "wifi", T = "clock", b = "compass", e = "wind",
 }
 
+local ModernIconGlyphs = {
+    ["modern:combat"] = { Offset = Vector2.new(2, 2), Size = Vector2.new(60, 60) },
+    ["modern:exploits"] = { Offset = Vector2.new(66, 2), Size = Vector2.new(60, 60) },
+    ["modern:movement"] = { Offset = Vector2.new(130, 2), Size = Vector2.new(60, 60) },
+    ["modern:render"] = { Offset = Vector2.new(194, 2), Size = Vector2.new(60, 60) },
+    ["modern:player"] = { Offset = Vector2.new(258, 2), Size = Vector2.new(60, 60) },
+    ["modern:settings"] = { Offset = Vector2.new(322, 2), Size = Vector2.new(60, 60) },
+    ["modern:keybind"] = { Offset = Vector2.new(386, 2), Size = Vector2.new(60, 60) },
+    ["modern:palette"] = { Offset = Vector2.new(450, 2), Size = Vector2.new(60, 60) },
+    ["modern:logo"] = { Offset = Vector2.new(2, 66), Size = Vector2.new(60, 60) },
+    ["modern:ping"] = { Offset = Vector2.new(66, 66), Size = Vector2.new(60, 60) },
+    ["modern:timer"] = { Offset = Vector2.new(130, 66), Size = Vector2.new(60, 60) },
+    ["modern:clock"] = { Offset = Vector2.new(194, 66), Size = Vector2.new(60, 60) },
+    ["modern:fps"] = { Offset = Vector2.new(258, 66), Size = Vector2.new(60, 60) },
+    ["modern:sparkles"] = { Offset = Vector2.new(322, 66), Size = Vector2.new(60, 60) },
+    ["modern:trash"] = { Offset = Vector2.new(386, 66), Size = Vector2.new(60, 60) },
+    ["modern:shield"] = { Offset = Vector2.new(450, 66), Size = Vector2.new(60, 60) },
+    ["modern:check"] = { Offset = Vector2.new(2, 130), Size = Vector2.new(60, 60) },
+    ["modern:close"] = { Offset = Vector2.new(66, 130), Size = Vector2.new(60, 60) },
+    ["modern:info"] = { Offset = Vector2.new(130, 130), Size = Vector2.new(60, 60) },
+    ["modern:potion"] = { Offset = Vector2.new(194, 130), Size = Vector2.new(60, 60) },
+    ["modern:compass"] = { Offset = Vector2.new(258, 130), Size = Vector2.new(60, 60) },
+    ["modern:moon"] = { Offset = Vector2.new(322, 130), Size = Vector2.new(60, 60) },
+    ["modern:meteor"] = { Offset = Vector2.new(386, 130), Size = Vector2.new(60, 60) },
+    ["modern:radar"] = { Offset = Vector2.new(450, 130), Size = Vector2.new(60, 60) },
+}
+
+local ModernIconAliases = {
+    ["delta:combat"] = "modern:combat",
+    ["combat"] = "modern:combat",
+    ["delta:movement"] = "modern:movement",
+    ["movement"] = "modern:movement",
+    ["delta:render"] = "modern:render",
+    ["visuals"] = "modern:render",
+    ["delta:exploits"] = "modern:exploits",
+    ["exploits"] = "modern:exploits",
+    ["delta:settings"] = "modern:settings",
+    ["ui settings"] = "modern:settings",
+    ["settings"] = "modern:settings",
+    ["delta:player"] = "modern:player",
+    ["player"] = "modern:player",
+}
+
+local ModernIconFallback = {
+    ["modern:combat"] = "swords",
+    ["modern:exploits"] = "zap",
+    ["modern:movement"] = "wind",
+    ["modern:render"] = "eye",
+    ["modern:player"] = "user",
+    ["modern:settings"] = "settings",
+    ["modern:logo"] = "sparkles",
+}
+
 function Library:GetAsset(AssetName: string): string?
     if not CustomImageManagerAssets[AssetName] then
         return nil
@@ -1790,6 +1902,29 @@ function Library:PlayCustomSound(AssetName: string?, Volume: number?)
             task.delay(3, cleanup)
         end)
     end)
+end
+
+function Library:GetModernIcon(IconName: string): Icon?
+    if typeof(IconName) ~= "string" then
+        return nil
+    end
+    local Key = if ModernIconGlyphs[IconName] then IconName else ModernIconAliases[string.lower(IconName)]
+    local Glyph = if Key then ModernIconGlyphs[Key] else nil
+    if not Glyph then
+        return nil
+    end
+    local AssetData = CustomImageManagerAssets.ModernIcons
+    local HasAsset = (getcustomasset and isfile and isfile(AssetData.Path)) or (AssetData.RobloxId and AssetData.RobloxId > 0)
+    if HasAsset then
+        return {
+            Url = CustomImageManager.GetAsset("ModernIcons"),
+            ImageRectOffset = Glyph.Offset,
+            ImageRectSize = Glyph.Size,
+            IconName = Key,
+        }
+    end
+    local FallbackName = ModernIconFallback[Key]
+    return if FallbackName then Library:GetIcon(FallbackName) else nil
 end
 
 function Library:GetDeltaIcon(IconName: string): Icon?
@@ -1848,6 +1983,13 @@ function Library:GetCustomIcon(IconName: string): any
             ImageRectSize = Vector2.zero,
             Custom = true,
         }
+    end
+
+    if typeof(IconName) == "string" and ModernIconGlyphs[IconName] then
+        local ModernIcon = Library:GetModernIcon(IconName)
+        if ModernIcon then
+            return ModernIcon
+        end
     end
 
     if typeof(IconName) == "string" and (DeltaIconGlyphs[IconName] or DeltaIconAliases[string.lower(IconName)]) then
@@ -2452,6 +2594,138 @@ end
 
 function Library:SetClickGuiAnim(Enabled: boolean)
     Library.UseClickGuiAnim = Enabled == true
+end
+
+--// Nursultan Modern ClickGUI Theme Engine & Function HUD \\--
+Library.ModernStyle = false
+Library.ModernPanels = {}
+Library.ModernModules = {}
+Library.ModernSearch = nil
+
+function Library:GetModernPanelColor(): Color3
+    return Color3.fromRGB(13, 15, 24):Lerp(Library.Scheme.AccentColor, 0.045)
+end
+
+function Library:GetModernRowColor(): Color3
+    return Color3.fromRGB(20, 23, 35):Lerp(Library.Scheme.AccentColor, 0.05)
+end
+
+function Library:ApplyModernPanelTheme(Info: any)
+    if not Info or not Info.Frame or not Info.Frame.Parent then
+        return
+    end
+    local on = Library.ModernStyle == true
+    local acc = Library.Scheme.AccentColor
+    local out = Library.Scheme.OutlineColor
+    local modPanelCol = Library:GetModernPanelColor()
+    local secAcc = Color3.new(math.min(1, acc.R * 0.72 + 0.14), math.min(1, acc.G * 0.85 + 0.12), math.min(1, acc.B + 0.18))
+
+    Info.Frame.BackgroundColor3 = on and modPanelCol or Library:GetDeltaPanelColor()
+    Info.Frame.BackgroundTransparency = on and 0.14 or 0.215
+    if Info.Corner then
+        Info.Corner.CornerRadius = UDim.new(0, on and 12 or 16)
+    end
+    if Info.Stroke then
+        Info.Stroke.Color = on and acc:Lerp(out, 0.6) or out
+        Info.Stroke.Transparency = on and 0.38 or 0.65
+    end
+    if Info.AccentBar then
+        Info.AccentBar.Visible = on
+        if Info.AccentGrad then
+            Info.AccentGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, acc),
+                ColorSequenceKeypoint.new(1, secAcc),
+            })
+        end
+    end
+    if Info.HeaderDivider then
+        Info.HeaderDivider.Visible = on
+        Info.HeaderDivider.BackgroundColor3 = acc:Lerp(out, 0.65)
+    end
+    if Info.Title then
+        if on then
+            Info.Title.Position = Info.IconObj and UDim2.new(0, 42, 0.5, 0) or UDim2.new(0, 16, 0.5, 0)
+            Info.Title.Size = UDim2.new(1, -60, 0, 24)
+            Info.Title.TextSize = 16
+            Info.Title.TextColor3 = Library.Scheme.FontColor
+        else
+            Info.Title.Position = UDim2.new(0, 20, 0.5, 0)
+            Info.Title.Size = UDim2.new(1, -56, 0, 24)
+            Info.Title.TextSize = 18
+            Info.Title.TextColor3 = Library:GetDeltaHeaderColor()
+        end
+    end
+    if Info.IconObj then
+        if on then
+            Info.IconObj.AnchorPoint = Vector2.new(0, 0.5)
+            Info.IconObj.Position = UDim2.new(0, 15, 0.5, 0)
+            Info.IconObj.Size = UDim2.fromOffset(18, 18)
+            Info.IconObj.ImageColor3 = acc
+            if Info.ModernIconAsset then
+                Info.IconObj.Image = Info.ModernIconAsset.Url
+                Info.IconObj.ImageRectOffset = Info.ModernIconAsset.ImageRectOffset or Vector2.zero
+                Info.IconObj.ImageRectSize = Info.ModernIconAsset.ImageRectSize or Vector2.zero
+            end
+        else
+            Info.IconObj.AnchorPoint = Vector2.new(1, 0.5)
+            Info.IconObj.Position = UDim2.new(1, -20, 0.5, 0)
+            Info.IconObj.Size = UDim2.fromOffset(18, 18)
+            Info.IconObj.ImageColor3 = Library:GetDeltaHeaderColor()
+            if Info.DefaultIconAsset then
+                Info.IconObj.Image = Info.DefaultIconAsset.Url
+                Info.IconObj.ImageRectOffset = Info.DefaultIconAsset.ImageRectOffset or Vector2.zero
+                Info.IconObj.ImageRectSize = Info.DefaultIconAsset.ImageRectSize or Vector2.zero
+            end
+        end
+    end
+end
+
+function Library:RefreshModernStyle()
+    local on = Library.ModernStyle == true
+    for i = #Library.ModernPanels, 1, -1 do
+        local info = Library.ModernPanels[i]
+        if not info or not info.Frame or not info.Frame.Parent then
+            table.remove(Library.ModernPanels, i)
+        else
+            Library:ApplyModernPanelTheme(info)
+        end
+    end
+    for i = #Library.ModernModules, 1, -1 do
+        local mod = Library.ModernModules[i]
+        if not mod or mod.Destroyed then
+            table.remove(Library.ModernModules, i)
+        elseif mod.Display then
+            mod:Display()
+        end
+    end
+    local ms = Library.ModernSearch
+    if ms and ms.Holder and ms.Holder.Parent then
+        local acc = Library.Scheme.AccentColor
+        ms.Holder.BackgroundColor3 = on and Color3.fromRGB(13, 15, 24) or Library:GetDeltaGlassColor()
+        ms.Holder.BackgroundTransparency = on and 0.14 or 0.215
+        if ms.Stroke then
+            ms.Stroke.Color = on and acc:Lerp(Library.Scheme.OutlineColor, 0.45) or Library.Scheme.OutlineColor
+            ms.Stroke.Transparency = on and 0.22 or 0.35
+        end
+        if ms.LogoIcon then
+            ms.LogoIcon.Visible = on
+            ms.LogoIcon.ImageColor3 = acc
+        end
+        if ms.Box then
+            ms.Box.TextXAlignment = on and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center
+            if ms.Padding then
+                ms.Padding.PaddingLeft = UDim.new(0, on and 34 or 12)
+            end
+        end
+    end
+    if Library.RefreshModernHudColors then
+        Library:RefreshModernHudColors()
+    end
+end
+
+function Library:SetModernStyle(Enabled: boolean)
+    Library.ModernStyle = Enabled == true
+    Library:RefreshModernStyle()
 end
 
 function Library:AddGlowShadow(Parent: GuiObject, Spread: number?, ColorSource: any?, Transparency: number?)
@@ -4521,6 +4795,294 @@ do
     function Library:SetWatermarkVisibility(Visible: boolean)
         WmOpts.Visible = Visible == true
         WmRoot.Visible = WmOpts.Visible
+    end
+end
+
+--// Nursultan Modern Active Functions HUD (ArrayList) \\--
+do
+    local HudRoot = nil
+    local HudHeader = nil
+    local HudHeaderBar = nil
+    local HudHeaderGrad = nil
+    local HudLogoIcon = nil
+    local HudCountBadge = nil
+    local HudList = nil
+    local HudVisible = false
+    local HudEntries = {}
+    local HudRows = {}
+
+    local function GetHudAccentPair()
+        local acc = Library.Scheme.AccentColor
+        local sec = Color3.new(
+            math.min(1, acc.R * 0.72 + 0.16),
+            math.min(1, acc.G * 0.85 + 0.12),
+            math.min(1, acc.B + 0.2)
+        )
+        return acc, sec
+    end
+
+    local function EnsureHudGui()
+        if HudRoot and HudRoot.Parent then
+            return true
+        end
+        local parentGui = Library.ScreenGui
+        if not parentGui then
+            return false
+        end
+
+        local acc, sec = GetHudAccentPair()
+        HudRoot = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            AutomaticSize = Enum.AutomaticSize.XY,
+            BackgroundTransparency = 1,
+            Name = RandomGuiName(),
+            Position = UDim2.new(1, -14, 0, 52),
+            Size = UDim2.fromOffset(0, 0),
+            Visible = HudVisible,
+            ZIndex = 40,
+            Parent = parentGui,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = HudRoot,
+        })
+
+        HudHeader = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = Color3.fromRGB(12, 14, 23),
+            BackgroundTransparency = 0.16,
+            ClipsDescendants = true,
+            LayoutOrder = 0,
+            Size = UDim2.fromOffset(0, 26),
+            ZIndex = 41,
+            Parent = HudRoot,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 8), Parent = HudHeader })
+        New("UIStroke", { Color = acc:Lerp(Library.Scheme.OutlineColor, 0.5), Thickness = 1, Transparency = 0.35, Parent = HudHeader })
+
+        HudHeaderBar = New("Frame", {
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 2),
+            ZIndex = 43,
+            Parent = HudHeader,
+        })
+        HudHeaderGrad = Instance.new("UIGradient")
+        HudHeaderGrad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, acc),
+            ColorSequenceKeypoint.new(1, sec),
+        })
+        HudHeaderGrad.Parent = HudHeaderBar
+
+        local HeaderInner = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 0, 1, 0),
+            ZIndex = 42,
+            Parent = HudHeader,
+        })
+        New("UIPadding", { PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9), Parent = HeaderInner })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = UDim.new(0, 6),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = HeaderInner,
+        })
+
+        local logoAsset = Library:GetModernIcon("modern:logo") or Library:GetIcon("sparkles")
+        if logoAsset then
+            HudLogoIcon = Library:CreateIcon(logoAsset, {
+                ImageColor3 = acc,
+                LayoutOrder = 1,
+                Size = UDim2.fromOffset(14, 14),
+                ZIndex = 42,
+                Parent = HeaderInner,
+            })
+        end
+
+        New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Font = Enum.Font.GothamBold,
+            LayoutOrder = 2,
+            Size = UDim2.fromOffset(0, 22),
+            Text = "Modules",
+            TextColor3 = Color3.fromRGB(238, 242, 255),
+            TextSize = 12,
+            ZIndex = 42,
+            Parent = HeaderInner,
+        })
+
+        HudCountBadge = New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = acc,
+            BackgroundTransparency = 0.78,
+            Font = Enum.Font.GothamBold,
+            LayoutOrder = 3,
+            Size = UDim2.fromOffset(20, 16),
+            Text = "0",
+            TextColor3 = Color3.fromRGB(240, 244, 255),
+            TextSize = 11,
+            ZIndex = 42,
+            Parent = HeaderInner,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 5), Parent = HudCountBadge })
+        New("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), Parent = HudCountBadge })
+
+        HudList = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.XY,
+            BackgroundTransparency = 1,
+            LayoutOrder = 1,
+            Size = UDim2.fromOffset(0, 0),
+            ZIndex = 41,
+            Parent = HudRoot,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = UDim.new(0, 3),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = HudList,
+        })
+
+        Library:MakeDraggable(HudRoot, HudHeader, false, false)
+        return true
+    end
+
+    local function RenderHudRows()
+        if not HudVisible or not EnsureHudGui() then
+            return
+        end
+        local acc, sec = GetHudAccentPair()
+        if HudCountBadge then
+            HudCountBadge.Text = tostring(#HudEntries)
+            HudCountBadge.BackgroundColor3 = acc
+        end
+        if HudLogoIcon then
+            HudLogoIcon.ImageColor3 = acc
+        end
+        if HudHeaderGrad then
+            HudHeaderGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, acc),
+                ColorSequenceKeypoint.new(1, sec),
+            })
+        end
+
+        for i = 1, #HudEntries do
+            local item = HudEntries[i]
+            local row = HudRows[i]
+            if not row then
+                local pill = New("Frame", {
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = Color3.fromRGB(13, 15, 24),
+                    BackgroundTransparency = 0.2,
+                    ClipsDescendants = true,
+                    LayoutOrder = i,
+                    Size = UDim2.fromOffset(0, 22),
+                    ZIndex = 41,
+                    Parent = HudList,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = pill })
+                local pStroke = New("UIStroke", { Color = Color3.fromRGB(38, 43, 64), Thickness = 1, Transparency = 0.45, Parent = pill })
+
+                local bar = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    BackgroundColor3 = acc,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(1, -2, 0.5, 0),
+                    Size = UDim2.fromOffset(3, 14),
+                    ZIndex = 43,
+                    Parent = pill,
+                })
+                New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = bar })
+
+                local inner = New("Frame", {
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 0, 1, 0),
+                    ZIndex = 42,
+                    Parent = pill,
+                })
+                New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 9), Parent = inner })
+                New("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Right,
+                    Padding = UDim.new(0, 5),
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                    Parent = inner,
+                })
+
+                local tagLbl = New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundTransparency = 1,
+                    Font = Enum.Font.Gotham,
+                    LayoutOrder = 1,
+                    Size = UDim2.fromOffset(0, 20),
+                    Text = "",
+                    TextColor3 = Color3.fromRGB(152, 160, 188),
+                    TextSize = 11,
+                    Visible = false,
+                    ZIndex = 42,
+                    Parent = inner,
+                })
+                local nameLbl = New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundTransparency = 1,
+                    Font = Enum.Font.GothamMedium,
+                    LayoutOrder = 2,
+                    Size = UDim2.fromOffset(0, 20),
+                    Text = "",
+                    TextColor3 = Color3.fromRGB(240, 243, 255),
+                    TextSize = 12,
+                    ZIndex = 42,
+                    Parent = inner,
+                })
+                row = { Pill = pill, Bar = bar, Stroke = pStroke, Name = nameLbl, Tag = tagLbl }
+                HudRows[i] = row
+            end
+            row.Pill.Visible = true
+            row.Pill.LayoutOrder = i
+            local t = (i - 1) / math.max(1, #HudEntries - 1)
+            row.Bar.BackgroundColor3 = acc:Lerp(sec, t)
+            row.Name.Text = tostring(item.Name or "")
+            if item.Tag and item.Tag ~= "" then
+                row.Tag.Text = tostring(item.Tag)
+                row.Tag.Visible = true
+            else
+                row.Tag.Visible = false
+            end
+        end
+        for i = #HudEntries + 1, #HudRows do
+            HudRows[i].Pill.Visible = false
+        end
+    end
+
+    function Library:RefreshModernHudColors()
+        if HudVisible then
+            RenderHudRows()
+        end
+    end
+
+    function Library:SetModernHudVisibility(Visible: boolean)
+        HudVisible = Visible == true
+        if EnsureHudGui() and HudRoot then
+            HudRoot.Visible = HudVisible
+            if HudVisible then
+                RenderHudRows()
+            end
+        end
+    end
+
+    function Library:SetModernHudEntries(Entries: { { Name: string, Tag: string? } })
+        HudEntries = Entries or {}
+        if HudVisible then
+            RenderHudRows()
+        end
     end
 end
 
@@ -13855,6 +14417,17 @@ function Library:CreateWindow(WindowInfo)
                 Parent = SearchHolder,
             })
 
+            local SearchLogoObj = Library:GetModernIcon("modern:logo") or Library:GetIcon("search")
+            local SearchLogoIcon = SearchLogoObj and Library:CreateIcon(SearchLogoObj, {
+                AnchorPoint = Vector2.new(0, 0.5),
+                ImageColor3 = "AccentColor",
+                Position = UDim2.new(0, 11, 0.5, 0),
+                Size = UDim2.fromOffset(15, 15),
+                Visible = Library.ModernStyle == true,
+                ZIndex = 5,
+                Parent = SearchHolder,
+            }) or nil
+
             SearchBox = New("TextBox", {
                 BackgroundTransparency = 1,
                 ClearTextOnFocus = false,
@@ -13864,15 +14437,22 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 TextColor3 = "FontColor",
                 TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Center,
+                TextXAlignment = Library.ModernStyle and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,
                 ZIndex = 5,
                 Parent = SearchHolder,
             })
-            New("UIPadding", {
-                PaddingLeft = UDim.new(0, 12),
+            local SearchBoxPadding = New("UIPadding", {
+                PaddingLeft = UDim.new(0, Library.ModernStyle and 34 or 12),
                 PaddingRight = UDim.new(0, 12),
                 Parent = SearchBox,
             })
+            Library.ModernSearch = {
+                Holder = SearchHolder,
+                Stroke = SearchBoxStroke,
+                LogoIcon = SearchLogoIcon,
+                Box = SearchBox,
+                Padding = SearchBoxPadding,
+            }
 
             Library:GiveSignal(SearchBox.Focused:Connect(function()
                 Library.Registry[SearchBoxStroke].Color = "AccentColor"
@@ -14825,34 +15405,58 @@ function Library:CreateWindow(WindowInfo)
 
             PanelFrame = New("Frame", {
                 BackgroundColor3 = function()
-                    return Library:GetDeltaPanelColor()
+                    return Library.ModernStyle and Library:GetModernPanelColor() or Library:GetDeltaPanelColor()
                 end,
-                BackgroundTransparency = 0.215,
+                BackgroundTransparency = Library.ModernStyle and 0.14 or 0.215,
                 LayoutOrder = Order,
                 Name = RandomGuiName(),
                 Size = UDim2.fromOffset(PanelW, PanelH),
                 Parent = PanelsContainer,
             })
-            New("UICorner", {
-                CornerRadius = UDim.new(0, 16),
+            local PanelCorner = New("UICorner", {
+                CornerRadius = UDim.new(0, Library.ModernStyle and 12 or 16),
                 Parent = PanelFrame,
             })
             Library:AddGlowShadow(PanelFrame, 24, function()
-                return Library:GetDeltaPanelColor()
+                return Library.ModernStyle and Library:GetModernPanelColor() or Library:GetDeltaPanelColor()
             end, 0.22)
             Library:AddDeltaGradient(PanelFrame, 90, 1, 0.86)
-            New("UIStroke", {
+            local PanelStroke = New("UIStroke", {
                 Color = "OutlineColor",
                 Thickness = 1,
-                Transparency = 0.65,
+                Transparency = Library.ModernStyle and 0.38 or 0.65,
                 Parent = PanelFrame,
             })
+
+            local PanelAccentBar = New("Frame", {
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 0, 3),
+                Visible = Library.ModernStyle == true,
+                ZIndex = 5,
+                Parent = PanelFrame,
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 12), Parent = PanelAccentBar })
+            local PanelAccentGrad = Instance.new("UIGradient")
+            PanelAccentGrad.Parent = PanelAccentBar
 
             local PanelHeader = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, HeaderH),
                 ZIndex = 2,
                 Parent = PanelFrame,
+            })
+
+            local PanelHeaderDivider = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 1),
+                BackgroundColor3 = "OutlineColor",
+                BackgroundTransparency = 0.55,
+                BorderSizePixel = 0,
+                Position = UDim2.new(0.5, 0, 1, 0),
+                Size = UDim2.new(1, -24, 0, 1),
+                Visible = Library.ModernStyle == true,
+                ZIndex = 3,
+                Parent = PanelHeader,
             })
 
             if WindowInfo.DraggablePanels then
@@ -14866,9 +15470,9 @@ function Library:CreateWindow(WindowInfo)
                 Size = UDim2.new(1, -56, 0, 24),
                 Text = Name,
                 TextColor3 = function()
-                    return Library:GetDeltaHeaderColor()
+                    return Library.ModernStyle and Library.Scheme.FontColor or Library:GetDeltaHeaderColor()
                 end,
-                TextSize = 18,
+                TextSize = Library.ModernStyle and 16 or 18,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 3,
@@ -14876,11 +15480,13 @@ function Library:CreateWindow(WindowInfo)
             })
 
             local ResolvedIcon = Icon or Library:GetCustomIcon(Name)
+            local ModernIconAsset = Library:GetModernIcon(Name) or (Icon and Library:GetModernIcon(Icon.IconName)) or ResolvedIcon
+            local PanelIconObj = nil
             if ResolvedIcon then
-                Library:CreateIcon(ResolvedIcon, {
+                PanelIconObj = Library:CreateIcon(ResolvedIcon, {
                     AnchorPoint = Vector2.new(1, 0.5),
                     ImageColor3 = function()
-                        return Library:GetDeltaHeaderColor()
+                        return Library.ModernStyle and Library.Scheme.AccentColor or Library:GetDeltaHeaderColor()
                     end,
                     Position = UDim2.new(1, -20, 0.5, 0),
                     Size = UDim2.fromOffset(18, 18),
@@ -14888,6 +15494,21 @@ function Library:CreateWindow(WindowInfo)
                     Parent = PanelHeader,
                 })
             end
+
+            local ModernPanelInfo = {
+                Frame = PanelFrame,
+                Corner = PanelCorner,
+                Stroke = PanelStroke,
+                AccentBar = PanelAccentBar,
+                AccentGrad = PanelAccentGrad,
+                HeaderDivider = PanelHeaderDivider,
+                Title = PanelTitle,
+                IconObj = PanelIconObj,
+                DefaultIconAsset = ResolvedIcon,
+                ModernIconAsset = ModernIconAsset,
+            }
+            table.insert(Library.ModernPanels, ModernPanelInfo)
+            Library:ApplyModernPanelTheme(ModernPanelInfo)
 
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
@@ -16246,6 +16867,15 @@ function Library:CreateWindow(WindowInfo)
                 Parent = ModuleCard,
             })
 
+            local CardGradient = Instance.new("UIGradient")
+            CardGradient.Rotation = 0
+            CardGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+                ColorSequenceKeypoint.new(1, Color3.new(0.65, 0.65, 0.65)),
+            })
+            CardGradient.Enabled = false
+            CardGradient.Parent = ModuleCard
+
             local HoverOverlay = New("Frame", {
                 BackgroundColor3 = "WhiteColor",
                 BackgroundTransparency = 1,
@@ -16265,6 +16895,18 @@ function Library:CreateWindow(WindowInfo)
                 ZIndex = 5,
                 Parent = ModuleCard,
             })
+
+            local ModernBar = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                BackgroundColor3 = "AccentColor",
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 4, 0.5, 0),
+                Size = UDim2.fromOffset(3, 14),
+                Visible = false,
+                ZIndex = 6,
+                Parent = HeaderBtn,
+            })
+            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ModernBar })
 
             local HeaderLeft = New("Frame", {
                 BackgroundTransparency = 1,
@@ -16445,6 +17087,42 @@ function Library:CreateWindow(WindowInfo)
             function Module:Display()
                 if Library.Unloaded or Module.Destroyed then return end
                 local Active = (not Module.NoToggle) and (Module.Value == true)
+                local isMod = Library.ModernStyle == true
+
+                if isMod then
+                    TogglePill.Visible = false
+                    CardGradient.Enabled = Active or (Module.NoToggle and Module.Expanded)
+                    ModernBar.Visible = Active
+                    ModernBar.BackgroundColor3 = Library.Scheme.AccentColor
+                    HeaderLeft.Position = UDim2.fromOffset(Active and 13 or 8, 0)
+                    TitleLabel.TextTransparency = Module.Disabled and 0.65 or (Active and 0 or 0.16)
+
+                    local targetBg = (Active or (Module.NoToggle and Module.Expanded)) and Library.Scheme.AccentColor or Library:GetModernRowColor()
+                    local targetBgTrans = (Active or (Module.NoToggle and Module.Expanded)) and 0.68 or 0.42
+                    local targetStrokeCol = Active and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
+                    local targetStrokeTrans = Active and 0.35 or (Module.Expanded and 0.55 or 0.86)
+
+                    ModuleCard.BackgroundColor3 = targetBg
+                    CardStroke.Color = targetStrokeCol
+                    TweenService:Create(ModuleCard, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = targetBgTrans,
+                    }):Play()
+                    TweenService:Create(CardStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Transparency = targetStrokeTrans,
+                    }):Play()
+                    TweenService:Create(SettingsDots, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(1, -10, 0.5, -2),
+                    }):Play()
+                    RefreshBindBadge()
+                    return
+                end
+
+                CardGradient.Enabled = false
+                ModernBar.Visible = false
+                HeaderLeft.Position = UDim2.fromOffset(8, 0)
+                TitleLabel.TextTransparency = Module.Disabled and 0.65 or 0
+                ModuleCard.BackgroundColor3 = Library.Scheme.AccentColor
+                CardStroke.Color = Library.Scheme.OutlineColor
                 local ShowPill = Active
 
                 if Active then
@@ -16476,7 +17154,7 @@ function Library:CreateWindow(WindowInfo)
 
                 if not ShowPill then
                     task.delay(0.2, function()
-                        if not Module.Destroyed and not Module.Value then
+                        if not Module.Destroyed and not Module.Value and not Library.ModernStyle then
                             TogglePill.Visible = false
                         end
                     end)
@@ -16637,6 +17315,7 @@ function Library:CreateWindow(WindowInfo)
             setmetatable(Module, BaseGroupbox)
             Toggles[Idx] = Module
             table.insert(Tab.Modules, Module)
+            table.insert(Library.ModernModules, Module)
             Module:Display()
             Module:Resize()
 
@@ -16663,6 +17342,8 @@ function Library:CreateWindow(WindowInfo)
                 Toggles[Idx] = nil
                 local mIdx = table.find(Tab.Modules, Module)
                 if mIdx then table.remove(Tab.Modules, mIdx) end
+                local modIdx = table.find(Library.ModernModules, Module)
+                if modIdx then table.remove(Library.ModernModules, modIdx) end
             end
 
             return Module
