@@ -4779,20 +4779,11 @@ do
 
     local function MeasureArrayText(str: string, sz: number): number
         if str == "" then return 0 end
-        local fnt = Library.Scheme and Library.Scheme.Font
-        if fnt then
-            local ok, bounds = pcall(function()
-                local p = Instance.new("GetTextBoundsParams")
-                p.Text = str
-                p.RichText = false
-                p.Font = fnt
-                p.Size = sz
-                p.Width = 2000
-                return TextService:GetTextBoundsAsync(p)
-            end)
-            if ok and bounds then
-                return math.ceil(bounds.X) + 1
-            end
+        local ok, bounds = pcall(function()
+            return TextService:GetTextSize(str, sz, Enum.Font.GothamMedium, Vector2.new(2000, 25))
+        end)
+        if ok and bounds then
+            return math.ceil(bounds.X) + 2
         end
         return #str * 7 + 4
     end
@@ -4806,16 +4797,12 @@ do
         local st = ArrayStyle
         local scheme = Library.Scheme or {}
         local acc = scheme.AccentColor or Color3.fromRGB(133, 156, 255)
-        local bgCol = if st == "Modern"
-            then Library:GetModernPanelColor()
-            elseif st == "Cards" then Library:GetDeltaPanelColor()
-            else (scheme.MainColor or Color3.fromRGB(16, 18, 28))
-        local bgTrans = if st == "Classic" then 0.08 elseif st == "Cards" then 0.18 else 0.2
-        local radius = if st == "Classic" then 3 elseif st == "Cards" then 6 else 5
-        local strokeCol = if st == "Modern"
-            then Color3.fromRGB(64, 58, 82):Lerp(acc, 0.2)
-            else (scheme.OutlineColor or Color3.fromRGB(48, 52, 68))
-        local strokeTrans = if st == "Classic" then 0.25 else 0.56
+        local baseBg = scheme.BackgroundColor or Color3.fromRGB(16, 18, 28)
+        local bgCol = baseBg:Lerp(acc, (75 / 255) / 6)
+        local bgTrans = 0.08
+        local radius = if st == "Classic" then 4 else 6
+        local strokeCol = scheme.OutlineColor or Color3.fromRGB(48, 52, 68)
+        local strokeTrans = 0.72
         local fontCol = scheme.FontColor or Color3.fromRGB(240, 239, 247)
         local tagCol = fontCol:Lerp(bgCol, 0.44)
         local secAcc = Color3.new(math.min(1, acc.R * 0.72 + 0.16), math.min(1, acc.G * 0.85 + 0.12), math.min(1, acc.B + 0.2))
@@ -4869,7 +4856,7 @@ do
                 local nameLbl = New("TextLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     BackgroundTransparency = 1,
-                    FontFace = scheme.Font,
+                    Font = Enum.Font.GothamMedium,
                     Position = UDim2.new(0, 8, 0.5, 0),
                     Size = UDim2.fromOffset(m.NW, 21),
                     Text = m.Name,
@@ -4883,7 +4870,7 @@ do
                 local tagLbl = New("TextLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     BackgroundTransparency = 1,
-                    FontFace = scheme.Font,
+                    Font = Enum.Font.GothamMedium,
                     Position = UDim2.new(0, 8 + m.NW + 5, 0.5, 0),
                     Size = UDim2.fromOffset(m.TW, 21),
                     Text = m.Tag,
@@ -4922,10 +4909,8 @@ do
                 row.BarCorner.CornerRadius = UDim.new(1, 0)
             end
 
-            if scheme.Font then
-                row.Name.FontFace = scheme.Font
-                row.Tag.FontFace = scheme.Font
-            end
+            row.Name.Font = Enum.Font.GothamMedium
+            row.Tag.Font = Enum.Font.GothamMedium
             row.Name.Text = m.Name
             row.Name.TextColor3 = fontCol
             row.Name.Position = UDim2.new(0, 8, 0.5, 0)
